@@ -43,13 +43,12 @@ for f in sorted(glob.glob(os.path.join(res_dir, '*.json')), key=os.path.getmtime
                 status = r['status']
                 err = (r.get('error') or {}).get('message', '')
                 err = re.sub(r'\x1b\[[0-9;]*m', '', err).split('\n')[0][:200]
-                shots = [os.path.basename(a['path']) for a in r.get('attachments', []) if a.get('path', '').endswith('.png')]
                 when = r.get('startTime', '')[:10]
                 results[m.group(1)] = {
                     'result': '정상' if status == 'passed' else '미수행' if status == 'skipped' else '오류',
                     'text': '\n'.join(notes + skip + ([f'오류: {err}'] if status not in ('passed', 'skipped') and err else [])),
                     'date': when,
-                    'attach': ', '.join(shots),
+                    'attach': '',  # 실패 스크린샷은 test-results 가 실행마다 지워지므로 증적은 수동결과.json 의 attach 로 지정
                 }
 
 results.update({k: {**results.get(k, {}), **v} for k, v in manual.items()})
@@ -60,7 +59,7 @@ today = datetime.date.today().isoformat()
 done = 0
 for row in range(6, ws.max_row + 1):
     tid = ws.cell(row, 4).value
-    if not tid or tid not in results:
+    if not tid or not str(tid).startswith('AD230_') or tid not in results:
         continue
     r = results[tid]
     ws.cell(row, 8).value = '최신영'
@@ -80,13 +79,13 @@ tc = wb['테스트 케이스']
 cases = []
 for row in range(6, tc.max_row + 1):
     tid = tc.cell(row, 4).value
-    if not tid:
+    if not tid or not str(tid).startswith('AD230_'):
         continue
     cases.append({'id': tid, 'screen': tc.cell(row, 2).value or '', 'func': tc.cell(row, 3).value or '',
                   'case': tc.cell(row, 5).value or '', 'step': tc.cell(row, 6).value or '', 'expected': tc.cell(row, 7).value or '',
                   **results.get(tid, {'result': '미실행', 'text': ''})})
 with open(os.path.splitext(dst)[0] + '_결과.json', 'w', encoding='utf8') as f:
     json.dump(cases, f, ensure_ascii=False, indent=1)
-missing = [ws.cell(r, 4).value for r in range(6, ws.max_row + 1) if ws.cell(r, 4).value and ws.cell(r, 4).value not in results]
+missing = [ws.cell(r, 4).value for r in range(6, ws.max_row + 1) if str(ws.cell(r, 4).value or '').startswith('AD230_') and ws.cell(r, 4).value not in results]
 print(f'{done}건 기록 → {dst}')
 print('결과 없는 케이스:', ', '.join(missing) or '없음')

@@ -77,6 +77,25 @@ test.describe('정리', () => {
     // 하위 목록 추가·삭제는 _pmi-sublist.spec.ts
   }
 
+  test('[sychoi] 주기 목록 (오늘 만든 것 확인)', async ({ page }) => {
+    await openMenu(page, ['132', '372', '454']);
+    await clickTab(page, '목록(조건)');
+    const f = await waitFrame(page, F_COND);
+    await f.locator('[id="maPmMstrCommonDTO.filterIsActiveDesc"]').fill('');
+    await f.locator('[id="maPmMstrCommonDTO.pmDesc"]').fill('[sychoi]');
+    await f.locator('a.b_search:visible').first().click();
+    await settle(page, 2000);
+    const rows = await new Grid(f, '예방작업번호').rows();
+    const seen = new Set<string>();
+    const list = rows.filter((r) => !seen.has(r['예방작업번호']) && seen.add(r['예방작업번호']));
+    note(list.map((r) => `${r['예방작업번호']}: ${r['작업명']} / 시행 ${r['시행여부'] ?? ''} / 주기 ${r['주기'] ?? ''} ${r['주기구분'] ?? ''} / 설비 ${r['설비번호'] || '-'}`).join('\n'));
+    for (const r of list.filter((x) => Number(x['예방작업번호']) >= 8008)) {
+      const o = await openPm(page, r['예방작업번호']);
+      const desc = await fieldValue(o!.d, 'maPmMstrDetailDTO.description');
+      note(`${r['예방작업번호']} 상세: 주기="${await fieldValue(o!.d, 'maPmMstrDetailDTO.cycle')}" ${await fieldValue(o!.d, 'maPmMstrDetailDTO.periodTypeDesc')}, 시행여부=${await fieldValue(o!.d, 'maPmMstrDetailDTO.isActiveDesc')}, 작업명 ${desc.length}자 "${desc.slice(0, 60)}${desc.length > 60 ? '…' : ''}"`);
+    }
+  });
+
   test('8007 주기 1개월로 되돌림 (EC_015 재실행 전)', async ({ page }) => {
     const o = await openPm(page, '8007');
     await put(o!.d.locator('[id="maPmMstrDetailDTO.cycle"]'), '1');

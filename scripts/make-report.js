@@ -14,7 +14,11 @@ const br = (s) => esc(s).replace(/\n/g, '<br>');
 
 // 병합 칸이라 비어 있는 화면명은 위 행 값을 이어 씀
 let lastScreen = '';
-for (const c of cases) { if (c.screen) lastScreen = c.screen; else c.screen = lastScreen; }
+let lastFunc = '';
+for (const c of cases) {
+  if (c.screen) lastScreen = c.screen; else c.screen = lastScreen;
+  if (c.func) lastFunc = c.func; else c.func = lastFunc;
+}
 
 const count = (r) => cases.filter((c) => c.result === r).length;
 const sum = { total: cases.length, ok: count('정상'), ng: count('오류'), check: count('확인필요'), skip: count('미수행'), none: count('미실행') };
@@ -36,7 +40,8 @@ th { background: #eef2f8; } tr { page-break-inside: avoid; }
 .b { padding: 1px 6px; border-radius: 8px; font-weight: bold; white-space: nowrap; }
 .ok { background: #dcfce7; color: #166534; } .ng { background: #fee2e2; color: #991b1b; } .ck { background: #fef3c7; color: #92400e; } .sk, .no { background: #e5e7eb; color: #374151; }
 .shot { page-break-inside: avoid; margin: 8px 0; } .shot img { max-width: 100%; border: 1px solid #c9ced8; }
-td.t { width: 38%; font-size: 9px; }
+td.t { font-size: 9px; word-break: break-all; }
+table.fix { table-layout: fixed; }
 </style></head><body>
 <h1>정기점검주기(AD230) 단위테스트 결과 보고서</h1>
 <div class="sub">Dream 4.1 (QA) · 작업관리 > 정기점검작업 > 정기점검주기 · 작성 ${esc(info.date || new Date().toISOString().slice(0, 10))} · 테스트 ${esc(info.tester || '최신영')}</div>
@@ -49,11 +54,11 @@ ${info.summary ? `<p>${br(info.summary)}</p>` : ''}
 <table>${Object.entries(info.env || {}).map(([k, v]) => `<tr><th style="width:22%">${esc(k)}</th><td>${br(v)}</td></tr>`).join('')}</table>
 
 <h2>3. 오류·확인필요 항목</h2>
-${issues.length ? `<table><tr><th>ID</th><th>케이스</th><th>기대결과</th><th>실제결과</th></tr>${issues.map((c) => `<tr><td>${esc(c.id)}<br>${badge(c.result)}</td><td>${br(c.case)}</td><td>${br(c.expected)}</td><td class="t">${br(c.text)}</td></tr>`).join('')}</table>` : '<p>없음</p>'}
+${issues.length ? `<table class="fix"><tr><th style="width:13%">ID</th><th style="width:20%">케이스</th><th style="width:25%">기대결과</th><th>실제결과</th></tr>${issues.map((c) => `<tr><td>${esc(c.id)}<br>${badge(c.result)}</td><td>${br(c.case)}</td><td>${br(c.expected)}</td><td class="t">${br(c.text)}</td></tr>`).join('')}</table>` : '<p>없음</p>'}
 ${(info.shots || []).map((s) => (img(s.path) ? `<div class="shot"><b>${esc(s.title)}</b><br><img src="${img(s.path)}"></div>` : '')).join('')}
 
 <h2>4. 케이스별 결과</h2>
-<table><tr><th style="width:11%">ID</th><th style="width:8%">기능</th><th>케이스</th><th style="width:7%">결과</th><th>실제결과</th></tr>
+<table class="fix"><tr><th style="width:13%">ID</th><th style="width:9%">기능</th><th style="width:24%">케이스</th><th style="width:9%">결과</th><th>실제결과</th></tr>
 ${cases.map((c) => `<tr><td>${esc(c.id)}</td><td>${esc(c.func)}</td><td>${br(c.case)}</td><td>${badge(c.result)}</td><td class="t">${br(c.text)}</td></tr>`).join('')}</table>
 
 ${(info.extra || []).length ? `<h2>5. 추가 확인 (테스트 데이터 정리)</h2><table>${info.extra.map((e) => `<tr><th style="width:22%">${esc(e.title)}</th><td class="t" style="width:auto">${br(e.text)}</td></tr>`).join('')}</table>` : ''}

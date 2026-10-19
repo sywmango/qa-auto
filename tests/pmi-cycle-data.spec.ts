@@ -60,7 +60,7 @@ const PM_VALUES: Record<string, string | null> = {
   'maPmMstrDetailDTO.remark': '임펠러 체결 상태, 베어링 이상음, 씰 누유 확인',
 };
 
-const state: { pmNo?: string; name?: string; entered?: Entered; eq1Date?: string; eq2Date?: string } = {};
+const state: { pmNoN?: string; pmNo?: string; name?: string; entered?: Entered; eq1Date?: string; eq2Date?: string } = {};
 
 function note(text: string) {
   test.info().annotations.push({ type: '실제결과', description: text });
@@ -542,15 +542,20 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
   });
 
   test('AD230_EC_008 시행여부 N 의 일정생성을 확인한다.', async ({ page }) => {
+    test.setTimeout(420_000);
+    // 이미 만든 미시행 주기가 있으면 다시 만들지 않음
+    let pmNo = state.pmNoN ?? '';
+    if (!pmNo) {
     const f = await openCond(page);
     await clickButton(f, '생성');
     const d = await waitFrame(page, F_DETAIL);
     await settle(page, 1500);
     await fillAllFields(page, d, { ...PM_VALUES, 'maPmMstrDetailDTO.description': `${uniqueName()} (미시행)`, 'maPmMstrDetailDTO.isActiveDesc': 'N' }, STAMP);
     await saveForm(page, d);
-    const pmNo = await fieldValue(d, 'maPmMstrDetailDTO.pmNo');
+    pmNo = await fieldValue(d, 'maPmMstrDetailDTO.pmNo');
     remember(pmNo);
-    let { d: d2 } = await openPm(page, pmNo);
+    state.pmNoN = pmNo;
+    await openPm(page, pmNo);
     const eq = await sub(page, F_EQ_LIST);
     await clickButton(eq, '생성');
     await settle(page, 1500);
@@ -559,7 +564,8 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     const ed = await detailFrame(page, D.eq);
     await put(ed.locator('[id="workPmListEquipDetailDTO.initWrkDate"]'), dateAfter(7));
     await saveForm(page, ed);
-    ({ d: d2 } = await openPm(page, pmNo));
+    }
+    let { d: d2 } = await openPm(page, pmNo);
     await clickButton(d2, '일정생성');
     await settle(page, 800);
     const ok = page.getByText('OK', { exact: true }).first();

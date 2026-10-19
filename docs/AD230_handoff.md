@@ -63,3 +63,22 @@ npx playwright test pmi-cycle-data -g "TC_018|TC_019" --reporter=line   # 데이
 $env:QA_DEBUG="1"; npx playwright test _pmi-fixup -g "8001 이름" --reporter=line
 ```
 JSON 결과가 필요하면 `$env:PLAYWRIGHT_JSON_OUTPUT_NAME="경로"; npx playwright test ... --reporter=line,json`.
+
+---
+## 2026-10-19 19:45 KST 업데이트 (2차)
+- 결과: `docs/AD230_UT_정기점검주기_v4.xlsx` (Dev 조치사항 H~L·Q 기록), 보고서 `docs/report/AD230_정기점검주기_테스트결과보고서.pdf`
+  - 정상 35 / 오류 3 (TC_004, EC_011, EC_014) / 확인필요 6 (TC_010, 024, 028, 035, 041, EC_013) / 미수행 14
+- 원인 정리
+  - 8001 저장 멈춤: 비고에서 Tab → 포커스가 하위 목록 프레임으로 → 상세 버튼 줄이 메인 머리줄로 옮겨 감. 클릭 제한시간이 없어 끝없이 대기했음 → `actionTimeout 15초`, saveForm 이 옮겨 간 버튼도 찾음
+  - 수정 저장 미반영: 화면이 키 입력(keyup)으로 수정 여부를 판단. fill 만 하면 [저장]이 안내 없이 아무것도 안 함 → `put()`/`leaveField()` (End 키 + change + blur)
+  - 필수 칸 표시는 `label.check`
+  - 점검일정 새 창은 기간이 '지난달 1일~오늘'로 열림 → readPlans 가 기간을 1년 뒤까지 넓혀 검색
+  - 점검항목 생성 시 수치/판정 Lov 가 먼저 뜨고, 상세 프레임은 `maPmMstrPointValueDetail_…`
+  - 표준작업 생성 Lov 는 왼쪽 트리 + 오른쪽 목록 → 목록(조건) 탭에서 고름. 선택 후 '저장하시겠습니까?' OK
+- 테스트 데이터: 8001, 8004 (하위 목록 4종 각 1건 이상), 8007 (TC_019), 8013 (EC_011), 8014 (EC_013), 8015 (EC_008), 8016 (EC_008 재실행 중 중복 생성). 모두 [sychoi], 삭제 안 함
+- 결과 다시 만들기
+```
+python scripts/write-results.py docs/AD230_UT_정기점검주기_v3.xlsx docs/AD230_UT_정기점검주기_v5.xlsx playwright/.data/results docs/report/수동결과.json
+node scripts/make-report.js docs/AD230_UT_정기점검주기_v5_결과.json docs/report/보고서정보.json docs/report/보고서.pdf
+```
+- 남은 것: EC_001~007·010·012, TC_015·036 (사유는 보고서 7장), TC_029/030 Linked 창 기간 조건 확인
