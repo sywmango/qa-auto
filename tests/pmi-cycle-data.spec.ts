@@ -264,6 +264,22 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
   });
 
   test('AD230_TC_039 표준항목을 선택하여 점검항목을 추가한다.', async ({ page }) => {
+    // 표준항목선택 팝업은 이 주기에 붙은 표준작업의 점검항목을 보여줌 →
+    // 테스트용 표준작업(믹서, [sychoi] High Speed Mixer 정기점검 표준작업)이 없으면 먼저 붙임
+    const STD_NO = JSON.parse(fs.readFileSync(path.join('playwright', '.data', 'stdwork.json'), 'utf8')).no as string;
+    await openPm(page, state.pmNo!);
+    let stds = await rowsOf(page, 'std', '표준작업명');
+    let stdNote = `표준작업 ${stds.map((r) => r['표준작업번호']).join(', ')}`;
+    if (!stds.some((r) => r['표준작업번호'] === STD_NO)) {
+      const a = await addStd(page, stds.map((r) => r['표준작업번호']), '');
+      stds = await rowsOf(page, 'std', '표준작업명');
+      stdNote += ` → 표준작업 ${a.picked?.['표준작업번호']} ${a.picked?.['표준작업명']} 추가`;
+      // 테스트가 넣었던 분석기용 1642 는 이 설비와 맞지 않으므로 Mixer 표준작업이 붙은 뒤 삭제
+      if (stds.some((r) => r['표준작업번호'] === STD_NO) && stds.some((r) => r['표준작업번호'] === '1642')) {
+        await deleteRow(page, 'std', '표준작업명', '표준작업번호', '1642');
+        stdNote += ', 1642(분석기용) 삭제';
+      }
+    }
     await openPm(page, state.pmNo!);
     const pt = await sub(page, F_PT_LIST);
     const before = (await new Grid(pt, '점검항목').rows()).length;
@@ -286,7 +302,8 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     }
     const msg = await popupMessage(page);
     const after = (await new Grid(await sub(page, F_PT_LIST), '점검항목').rows()).length;
-    note(`표준항목선택: ${picked}, 메시지 "${msg || '없음'}", 점검항목 ${before} → ${after}행`);
+    note(`${stdNote}
+표준항목선택: ${picked}, 메시지 "${msg || '없음'}", 점검항목 ${before} → ${after}행`);
     expect(after).toBeGreaterThan(before);
   });
 

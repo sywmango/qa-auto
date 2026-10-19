@@ -128,15 +128,18 @@ export async function lovContentFrame(page: Page): Promise<Frame> {
   let found: Frame | undefined;
   await expect
     .poll(async () => {
+      // 팝업이 두 개 이상 열려 있을 수 있음(popupIframe1, popupIframe2 …) → 가장 나중에 열린(위에 있는) 팝업을 씀
+      found = undefined;
       for (const f of page.frames()) {
-        if (!/popupIframe1|lov/i.test(f.name() + f.url())) continue;
+        if (!/popupIframe\d|lov/i.test(f.name() + f.url())) continue;
         const has = await f.evaluate(() =>
+          (!window.frameElement || (window.frameElement as HTMLElement).offsetWidth > 0) &&
           [...document.querySelectorAll<HTMLElement>('div.gridbox')].some((g) => g.offsetWidth > 0) &&
           [...document.querySelectorAll<HTMLElement>('a')].some((a) => a.offsetWidth > 0 && a.innerText.trim() === '선택'),
         ).catch(() => false);
-        if (has) { found = f; return true; }
+        if (has) found = f;
       }
-      return false;
+      return !!found;
     }, { message: 'Lov 팝업 내용 찾기', timeout: 15_000 })
     .toBe(true);
   return found!;
