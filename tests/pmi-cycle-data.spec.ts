@@ -509,13 +509,16 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
       await put(d.locator('[id="maPmMstrDetailDTO.cycle"]'), v);
       const shown = await fieldValue(d, 'maPmMstrDetailDTO.cycle');
       const msg = shown === '' ? '(입력 자체가 막힘)' : await saveForm(page, d);
-      const pm = await fieldValue(d, 'maPmMstrDetailDTO.pmNo');
-      const saved = /저장|완료/.test(msg) && !/필수|확인하/.test(msg);
-      log.push(`"${v}" → 칸 값 "${shown}", 결과 "${msg || '(메시지 없음)'}"`);
-      if (saved) remember(pm);
-      expect.soft(saved, `주기 "${v}" 는 저장되면 안 됨`).toBe(false);
+      log.push(`"${v}" → 칸 값 "${shown}", 저장 안내 "${msg || '(없음)'}"`);
     }
+    // 이 화면은 저장 성공 안내가 없으므로 다시 열어 실제로 저장됐는지, 주기가 몇으로 남았는지 확인
+    const pm = await fieldValue(d, 'maPmMstrDetailDTO.pmNo');
+    const exists = await openPm(page, pm).then(() => true).catch(() => false);
+    const savedCycle = exists ? await fieldValue(await waitFrame(page, F_DETAIL), 'maPmMstrDetailDTO.cycle') : '';
+    if (exists) remember(pm);
+    log.push(exists ? `예방작업번호 ${pm} 이 저장되어 있음, 저장된 주기="${savedCycle}"` : '저장된 주기 없음');
     note(log.join('\n'));
+    expect.soft(exists, '잘못된 주기 값으로는 저장되면 안 됨').toBe(false);
   });
 
   test('AD230_EC_013 작업명 최대 길이와 특수문자를 확인한다.', async ({ page }) => {
@@ -536,7 +539,10 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     await put(d2.locator('[id="maPmMstrDetailDTO.description"]'), long);
     const typed = (await fieldValue(d2, 'maPmMstrDetailDTO.description')).length;
     const msg2 = await saveForm(page, d2);
-    note(`특수문자 작업명 저장("${msg || '없음'}") → 다시 열었을 때 "${back}" (${back === special ? '같음' : '다름'})\n최대 길이: maxlength=${maxLen ?? '없음'}, ${long.length}자 입력 시도 → 칸에 ${typed}자, 저장 결과 "${msg2 || '(메시지 없음)'}"`);
+    const { d: d3 } = await openPm(page, pmNo);
+    const after = await fieldValue(d3, 'maPmMstrDetailDTO.description');
+    note(`특수문자 작업명 저장("${msg || '없음'}") → 다시 열었을 때 "${back}" (${back === special ? '같음' : '다름'})\n최대 길이: maxlength=${maxLen ?? '없음'}, ${long.length}자 입력 시도 → 칸에 ${typed}자, 저장 안내 "${msg2 || '(없음)'}", 다시 열었을 때 ${after.length}자 (${after === back ? '이전 값 그대로 = 저장 안 됨' : after.length === typed ? '전부 저장됨' : '잘려서 저장됨'})`);
+    expect.soft(after === back && !msg2, '긴 값이 저장되지 않으면 안내가 있어야 함').toBe(false);
     expect.soft(back).toBe(special);
     expect.soft(/오류|exception|error/i.test(msg2), '긴 값 저장 시 시스템 오류가 나면 안 됨').toBe(false);
   });
