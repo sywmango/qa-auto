@@ -27,7 +27,7 @@ async function createPm(page: Page, key: string, sched: string, resched: string,
   await settle(page, 1500);
   // UBM/RBM 은 일정생성방법을 먼저 고르면 칸이 바뀜: 주기 대신 사용량(시간), 몇시간(사용량)전, 사용/가동달력
   const base: Record<string, string | null> = sched === 'TBM' ? { ...PM_VALUES } : {
-    'maPmMstrDetailDTO.isActiveDesc': 'Y', 'maPmMstrDetailDTO.usage': '40', 'maPmMstrDetailDTO.woResBef': '200', // 첫 작업이 바로 발행되도록 넉넉히
+    'maPmMstrDetailDTO.isActiveDesc': 'Y', 'maPmMstrDetailDTO.usage': '40', 'maPmMstrDetailDTO.woResBef': '80', // 첫 작업만 발행되도록 (200 이면 미래 계획까지 모두 발행되어 재조정 확인이 어려움)
     'maPmMstrDetailDTO.predWoTimeMin': '40', 'maPmMstrDetailDTO.remark': PM_VALUES['maPmMstrDetailDTO.remark'] as string,
     // 테스트용 달력 (평일 1교대 480분 = 8시간/일)
     'maPmMstrDetailDTO.lnWrkListDesc': sched === 'RBM' ? '[sychoi] Mixer 가동달력' : '[sychoi] Mixer 사용달력',
