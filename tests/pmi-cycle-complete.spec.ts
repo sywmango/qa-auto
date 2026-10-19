@@ -27,10 +27,10 @@ async function createPm(page: Page, key: string, sched: string, resched: string,
   await settle(page, 1500);
   // UBM/RBM 은 일정생성방법을 먼저 고르면 칸이 바뀜: 주기 대신 사용량(시간), 몇시간(사용량)전, 사용/가동달력
   const base: Record<string, string | null> = sched === 'TBM' ? { ...PM_VALUES } : {
-    'maPmMstrDetailDTO.isActiveDesc': 'Y', 'maPmMstrDetailDTO.usage': '160', 'maPmMstrDetailDTO.woResBef': '80',
+    'maPmMstrDetailDTO.isActiveDesc': 'Y', 'maPmMstrDetailDTO.usage': '40', 'maPmMstrDetailDTO.woResBef': '200', // 첫 작업이 바로 발행되도록 넉넉히
     'maPmMstrDetailDTO.predWoTimeMin': '40', 'maPmMstrDetailDTO.remark': PM_VALUES['maPmMstrDetailDTO.remark'] as string,
-    // 가동달력: 요일별 기본값이 있는 QA가동달력
-    ...(sched === 'RBM' ? { 'maPmMstrDetailDTO.lnWrkListDesc': 'QA가동달력' } : {}),
+    // 테스트용 달력 (평일 1교대 480분 = 8시간/일)
+    'maPmMstrDetailDTO.lnWrkListDesc': sched === 'RBM' ? '[sychoi] Mixer 가동달력' : '[sychoi] Mixer 사용달력',
   };
   if (sched !== 'TBM') { await chooseInLov(page, d, 'maPmMstrDetailDTO.scheduleTypeDesc', sched); await settle(page, 1500); }
   await fillAllFields(page, d, {
@@ -196,10 +196,11 @@ test.describe('AD230 정기점검주기 (작업완료 후 일정 재조정)', ()
       const r = await runCase(page, id.slice(6), sched, resched, start, done);
       expect(r.before.length, `${sched} 로 계획이 생성되어야 함`).toBeGreaterThan(0);
       expect(r.after.some((p) => p.done), '첫 작업이 완료로 바뀜').toBe(true);
-      const nextBefore = r.before.find((p) => p.adj > start)?.adj;
-      const nextAfter = r.after.find((p) => !p.done && p.adj > done)?.adj;
-      note(`판정: 완료 후 다음 일정 ${nextAfter} / 완료 전 ${nextBefore} → ${nextAfter === nextBefore ? '그대로' : '바뀜'} (재조정 ${resched} 기대: ${resched === 'Y' ? '완료일 기준으로 바뀜' : '그대로'})`);
-      if (resched === 'Y') expect(nextAfter).not.toBe(nextBefore); else expect(nextAfter).toBe(nextBefore);
+      // 완료한 첫 작업을 뺀 나머지(앞으로의) 계획 비교
+      const restBefore = r.before.slice(1).map((p) => p.adj).join(', ');
+      const restAfter = r.after.filter((p) => !p.done).map((p) => p.adj).join(', ');
+      note(`판정: 완료 후 남은 계획 [${restAfter}] / 완료 전 [${restBefore}] → ${restAfter === restBefore ? '그대로' : '바뀜'} (재조정 ${resched} 기대: ${resched === 'Y' ? '완료일 기준으로 바뀜' : '그대로'})`);
+      if (resched === 'Y') expect(restAfter).not.toBe(restBefore); else expect(restAfter).toBe(restBefore);
     });
   }
 });
