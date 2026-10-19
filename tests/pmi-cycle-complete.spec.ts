@@ -29,6 +29,8 @@ async function createPm(page: Page, key: string, sched: string, resched: string,
   const base: Record<string, string | null> = sched === 'TBM' ? { ...PM_VALUES } : {
     'maPmMstrDetailDTO.isActiveDesc': 'Y', 'maPmMstrDetailDTO.usage': '160', 'maPmMstrDetailDTO.woResBef': '80',
     'maPmMstrDetailDTO.predWoTimeMin': '40', 'maPmMstrDetailDTO.remark': PM_VALUES['maPmMstrDetailDTO.remark'] as string,
+    // 가동달력: 요일별 기본값이 있는 QA가동달력
+    ...(sched === 'RBM' ? { 'maPmMstrDetailDTO.lnWrkListDesc': 'QA가동달력' } : {}),
   };
   if (sched !== 'TBM') { await chooseInLov(page, d, 'maPmMstrDetailDTO.scheduleTypeDesc', sched); await settle(page, 1500); }
   await fillAllFields(page, d, {
