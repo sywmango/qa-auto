@@ -1,5 +1,5 @@
-import { Page, Frame, expect } from '@playwright/test';
-import { settle, lovContentFrame, clickButton, escapeRe } from './dream';
+import { Page, Frame, Locator, expect } from '@playwright/test';
+import { settle, lovContentFrame, clickButton, escapeRe, expandTreeUntil } from './dream';
 
 // 상세 입력폼 공통 부품
 // - fillAllFields: 화면에 보이는 수정 가능한 칸을 모두 채움 (읽기전용은 건너뜀)
@@ -33,7 +33,8 @@ export async function listFields(scope: Frame): Promise<FieldInfo[]> {
         const isDate = /cal|date/i.test(cls) || /date/i.test(e.className);
         const isNum = /num|number|tx_r|right/i.test(e.className) || e.getAttribute('inputmode') === 'numeric' || getComputedStyle(e).textAlign === 'right';
         const kind = e.tagName === 'TEXTAREA' ? 'textarea' : isLov ? 'lov' : isDate ? 'date' : isNum ? 'number' : 'text';
-        const required = !!(labelEl && (/[•*]/.test(labelEl.textContent || '') || /req|essential|must/i.test(labelEl.className + ' ' + (field?.className || ''))));
+        // 필수 칸: 라벨에 class="check" (화면에서 • 표시)
+        const required = !!(labelEl && (/[•*]/.test(labelEl.textContent || '') || /req|essential|must|\bcheck\b/i.test(labelEl.className + ' ' + (field?.className || ''))));
         return { id: e.id, label, kind, readonly: e.readOnly || e.disabled, required } as const;
       });
   }).then((list) => {
@@ -44,6 +45,28 @@ export async function listFields(scope: Frame): Promise<FieldInfo[]> {
       return seen[f.label] > 1 ? { ...f, label: `(${seen[f.label]})` } : f;
     });
   });
+}
+
+/**
+ * 칸을 벗어난 것으로 처리.
+ * 이 화면은 키 입력(keyup)이 있어야 '수정됨'으로 인식하고, 인식되지 않으면 [저장]을 눌러도 안내 없이 저장되지 않습니다.
+ * fill 은 키 입력이 없으므로 End 키를 한 번 누르고, change 이벤트를 보낸 뒤 칸을 벗어납니다.
+ * (Tab 은 마지막 칸에서 포커스가 하위 목록 프레임으로 넘어가 keyup 이 다른 곳에서 일어나므로 쓰지 않음)
+ */
+export async function leaveField(input: Locator) {
+  // 화면이 키 입력(keyup)으로 수정 여부를 판단하므로 칸 안에서 End 키를 한 번 누른 뒤 벗어남
+  await input.press('End').catch(() => {});
+  await input.evaluate((e) => {
+    e.dispatchEvent(new Event('input', { bubbles: true }));
+    e.dispatchEvent(new Event('change', { bubbles: true }));
+    (e as HTMLElement).blur();
+  }).catch(() => {});
+}
+
+/** 값을 넣고 칸을 벗어남 (키 입력이 있어야 화면이 수정으로 인식) */
+export async function put(input: Locator, value: string) {
+  await input.fill(value);
+  await leaveField(input);
 }
 
 /** 이 날짜 기준 n일 뒤 yyyy-mm-dd */
@@ -97,6 +120,9 @@ export async function chooseInLov(page: Page, scope: Frame, id: string, pick?: s
     await closeLov(page);
     return false;
   }
+  // 트리 Lov(부서 등)는 찾는 글자가 보일 때까지 펼침
+  const exact = (t: string) => lov.locator('div.gridbox:visible .objbox td:visible', { hasText: new RegExp(`^\\s*${escapeRe(t)}\\s*$`) }).first();
+  if (pick && !(await exact(pick).isVisible().catch(() => false))) await expandTreeUntil(page, lov, pick).catch(() => false);
   const cell = pick
     ? lov.locator('div.gridbox:visible .objbox td:visible', { hasText: new RegExp(`^\\s*${escapeRe(pick)}\\s*$`) }).first()
     : cells.filter({ hasText: /\S/ }).nth(1); // 0번은 체크박스/순번일 수 있어 1번 칸
@@ -136,14 +162,14 @@ export async function fillAllFields(page: Page, scope: Frame, overrides: Record<
       await chooseInLov(page, scope, f.id, pick);
     } else if (f.kind === 'date') {
       await input.fill(want ?? dateAfter(14));
-      await input.press('Tab').catch(() => {});
+      await leaveField(input);
     } else if (f.kind === 'number') {
       await input.fill(want ?? realisticNumber(f.label));
-      await input.press('Tab').catch(() => {});
+      await leaveField(input);
     } else {
       await input.fill(want ?? realisticText(f.label, stamp));
-      // 값이 바뀐 것을 화면이 알아차리도록 칸을 벗어남
-      await input.press('Tab').catch(() => {});
+      // 값이 바뀐 것을 화면이 알아차리도록 칸을 벗어남 (Tab 대신, leaveField 설명 참고)
+      await leaveField(input);
     }
   }
   return readFields(scope, fields.map((f) => f.id));

@@ -2,9 +2,10 @@ import { test, expect, Page, Frame } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid } from './support/dream';
+import { D, detailFrame, rowsOf, deleteRow, deleteRowWhere, addStd, addPoint, addDoc, fmt, POINTS } from './support/pmi';
 import {
   fillAllFields, readFields, diffFields, diffWithRow, saveForm, popupMessage, chooseInLov, closeLov,
-  listFields, dateAfter, Entered, TAG,
+  listFields, dateAfter, Entered, TAG, leaveField, put,
 } from './support/form';
 
 // 작업관리 > 정기점검작업 > 정기점검주기 (AD230) — 데이터를 만들고 바꾸는 케이스
@@ -17,12 +18,7 @@ const MENU = ['132', '372', '454'];
 const F_COND = 'tabFrameTAB.workPmListInsList_workPmiMstr';
 const F_DETAIL = 'tabFrameTAB.workPmListRInsDetail_workPmListInsList';
 const F_EQ_LIST = 'tabFrameTAB.workPmListRInsEquipList_workPmListRInsDetail';
-const F_EQ_DETAIL = 'tabFrameTAB.workPmListRInsEquipDetail_workPmListRInsEquipList';
 const F_PT_LIST = 'tabFrameTAB.maPmMstrPointList_workPmListRInsDetail';
-const F_PT_DETAIL = 'tabFrameTAB.maPmMstrPointDetail_maPmMstrPointList';
-const F_STD_LIST = 'tabFrameTAB.workPmStdPointHdrList_workPmListRInsDetail';
-const F_DOC_LIST = 'tabFrameTAB.maPtDocLibList_workPmListRInsDetail';
-const F_DOC_DETAIL = 'tabFrameTAB.maPtDocLibDetail_maPtDocLibList';
 const STAMP = new Date().toISOString().slice(5, 16).replace(/[-T:]/g, '');
 // test-results 폴더는 실행할 때마다 지워지므로 playwright/.data 에 보관
 const CREATED = path.join('playwright', '.data', 'pmi-created.json');
@@ -102,11 +98,24 @@ const sub = (page: Page, name: string) => waitFrame(page, name);
 
 /** Linked > 점검일정 새 창에서 이 예방작업번호의 계획 목록을 읽습니다. */
 async function readPlans(page: Page, d: Frame) {
-  await clickButton(d, 'Linked');
+  // Linked 메뉴가 펼쳐질 때까지 (한 번에 안 펼쳐지는 경우가 있음)
+  const link = d.locator('a.link_pmrinssched');
+  for (let i = 0; i < 3 && !(await link.isVisible().catch(() => false)); i++) {
+    await clickButton(d, 'Linked');
+    await page.waitForTimeout(1000);
+  }
   const winP = page.context().waitForEvent('page', { timeout: 15_000 });
-  await d.locator('a.link_pmrinssched').click();
+  await link.click();
   const win = await winP;
   await settle(win, 3000);
+  // 새 창은 일정조정 일자가 '지난달 1일 ~ 오늘'로 걸려 있어 앞으로의 계획이 안 보임 → 오늘-30일 ~ 1년 뒤로 넓혀 다시 검색
+  const range = win.locator('div.field', { has: win.locator('label', { hasText: /^\s*일정조정 일자\s*$/ }) }).locator('input:visible');
+  if ((await range.count()) >= 2) {
+    await put(range.nth(0), dateAfter(-30));
+    await put(range.nth(1), dateAfter(400));
+    await win.locator('a.b_search:visible').first().click();
+    await settle(win, 3000);
+  }
   let rows: Record<string, string>[] = [];
   for (let i = 0; i < 10 && !rows.length; i++) {
     for (const fr of win.frames()) {
@@ -144,6 +153,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
   });
 
   test('AD230_TC_020 필수값을 하나씩 비우고 저장한다.', async ({ page }) => {
+    test.setTimeout(900_000); // 필수 칸마다 저장·안내 확인·되돌리기
     const f = await openCond(page);
     await clickButton(f, '생성');
     const d = await waitFrame(page, F_DETAIL);
@@ -153,13 +163,13 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     const log: string[] = [`필수 표시 칸: ${required.map((r) => r.label).join(', ')}`];
     for (const r of required) {
       const before = await fieldValue(d, r.id);
-      await d.locator(`[id="${r.id}"]`).fill('');
+      await put(d.locator(`[id="${r.id}"]`), '');
       const msg = await saveForm(page, d);
       log.push(`${r.label} 비움 → "${msg || '(메시지 없음)'}"`);
       expect.soft(msg, `${r.label} 누락 시 필수 안내`).toMatch(/필수/);
       // 원래 값 되돌리기
       if (r.kind === 'lov') await chooseInLov(page, d, r.id, before);
-      else await d.locator(`[id="${r.id}"]`).fill(before);
+      else await put(d.locator(`[id="${r.id}"]`), before);
     }
     note(log.join('\n'));
     // 이 폼은 저장하지 않고 떠남
@@ -193,13 +203,14 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
   test('AD230_TC_021 저장된 정기점검주기를 수정한다.', async ({ page }) => {
     const { d } = await openPm(page, state.pmNo!);
     const changes: Record<string, string> = {
-      'maPmMstrDetailDTO.description': `${state.name} (점검항목 보완)`,
+      // 이전 실행에서 붙은 표시는 떼고 한 번만 붙임
+      'maPmMstrDetailDTO.description': `${state.name!.replace(/( \(점검항목 보완\))+$/, '')} (점검항목 보완)`,
       'maPmMstrDetailDTO.predWoTimeMin': '45',
       'maPmMstrDetailDTO.remark': '임펠러 체결 토크 재확인 항목 추가',
     };
     for (const [id, v] of Object.entries(changes)) {
       await d.locator(`[id="${id}"]`).fill(v);
-      await d.locator(`[id="${id}"]`).press('Tab');
+      await leaveField(d.locator(`[id="${id}"]`));
     }
     const entered = await readFields(d);
     const msg = await saveForm(page, d);
@@ -215,7 +226,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
 
   test('AD230_TC_022 필수값을 지우고 수정한다.', async ({ page }) => {
     const { d } = await openPm(page, state.pmNo!);
-    await d.locator('[id="maPmMstrDetailDTO.description"]').fill('');
+    await put(d.locator('[id="maPmMstrDetailDTO.description"]'), '');
     const msg = await saveForm(page, d);
     const { d: d2 } = await openPm(page, state.pmNo!);
     const desc = await fieldValue(d2, 'maPmMstrDetailDTO.description');
@@ -233,7 +244,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
       await settle(page, 1500);
       // 생성하면 설비 Lov 가 자동으로 열림 → 설비번호로 골라서 선택
       const popup = page.frames().find((x) => x.name() === 'popupIframe1');
-      const ed = await sub(page, F_EQ_DETAIL);
+      const ed = await detailFrame(page, D.eq);
       if (popup && (await popup.locator('div.b_pwin_close').isVisible().catch(() => false))) {
         const { lovContentFrame, pickInLov } = await import('./support/dream');
         const lov = await lovContentFrame(page);
@@ -261,7 +272,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     await clickButton(eq, '생성');
     await settle(page, 1500);
     await closeLov(page);
-    const ed = await sub(page, F_EQ_DETAIL);
+    const ed = await detailFrame(page, D.eq);
     const msg = await saveForm(page, ed);
     note(`설비 없이 저장 → "${msg || '(메시지 없음)'}"`);
     expect(msg).toMatch(/필수/);
@@ -274,12 +285,19 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     await settle(page, 1500);
     const { lovContentFrame, pickInLov } = await import('./support/dream');
     await pickInLov(page, await lovContentFrame(page), EQUIP_1, '설비번호');
-    const ed = await sub(page, F_EQ_DETAIL);
-    await ed.locator('[id="workPmListEquipDetailDTO.initWrkDate"]').fill(dateAfter(20));
+    const ed = await detailFrame(page, D.eq);
+    const dup = dateAfter(20);
+    await put(ed.locator('[id="workPmListEquipDetailDTO.initWrkDate"]'), dup);
     const msg = await saveForm(page, ed);
     const rows = await new Grid(await sub(page, F_EQ_LIST), '최초작업예정일').rows();
     const n = rows.filter((r) => r['설비번호'] === EQUIP_1).length;
-    note(`이미 있는 설비 ${EQUIP_1} 다시 추가 → 메시지 "${msg || '없음'}", 목록의 ${EQUIP_1} 행 수 ${n}`);
+    // 중복으로 들어갔으면 이 테스트가 넣은 행(최초작업예정일 = dup)만 지워서 이후 일정생성에 영향이 없게 함
+    let cleaned = '';
+    if (n > 1) {
+      const m = await deleteRowWhere(page, 'eq', '최초작업예정일', (r) => r['설비번호'] === EQUIP_1 && r['최초작업예정일'] === dup, `${EQUIP_1} ${dup}`);
+      cleaned = ` → 테스트가 넣은 중복 행(${dup}) 삭제 ("${m || '없음'}")`;
+    }
+    note(`이미 있는 설비 ${EQUIP_1} 다시 추가 → 메시지 "${msg || '없음'}", 목록의 ${EQUIP_1} 행 수 ${n} (중복 허용됨)${cleaned}`);
     expect(n, '같은 설비가 두 번 들어가면 안 됨').toBe(1);
   });
 
@@ -288,10 +306,10 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     const eq = await sub(page, F_EQ_LIST);
     await new Grid(eq, '최초작업예정일').clickCell('설비번호', EQUIP_2);
     await settle(page, 1500);
-    const ed = await sub(page, F_EQ_DETAIL);
+    const ed = await detailFrame(page, D.eq);
     const date = dateAfter(12);
-    await ed.locator('[id="workPmListEquipDetailDTO.initWrkDate"]').fill(date);
-    await ed.locator('[id="workPmListEquipDetailDTO.remark"]').fill('점검 시작일 조정');
+    await put(ed.locator('[id="workPmListEquipDetailDTO.initWrkDate"]'), date);
+    await put(ed.locator('[id="workPmListEquipDetailDTO.remark"]'), '점검 시작일 조정');
     const msg = await saveForm(page, ed);
     const row = (await new Grid(await sub(page, F_EQ_LIST), '최초작업예정일').rows()).find((r) => r['설비번호'] === EQUIP_2);
     note(`${EQUIP_2} 최초작업예정일 ${state.eq2Date} → ${date} 저장("${msg || '없음'}"), 목록 값 ${row?.['최초작업예정일']}`);
@@ -301,16 +319,16 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
 
   test('AD230_TC_038 점검항목을 직접 추가한다. (모든 칸 입력)', async ({ page }) => {
     await openPm(page, state.pmNo!);
-    const pt = await sub(page, F_PT_LIST);
-    const before = (await new Grid(pt, '점검항목').rows()).length;
-    await clickButton(pt, '생성');
-    await settle(page, 1500);
-    const pd = await sub(page, F_PT_DETAIL);
-    const entered = await fillAllFields(page, pd, {}, STAMP);
-    const msg = await saveForm(page, pd);
-    const rows = await new Grid(await sub(page, F_PT_LIST), '점검항목').rows();
-    note(`점검항목 ${before} → ${rows.length}행 (저장 메시지 "${msg || '없음'}") / 입력 ${Object.values(entered).map((e) => `${e.label}=${e.value}`).join(', ')}`);
-    expect(rows.length).toBe(before + 1);
+    const rows = await rowsOf(page, 'pt', '점검항목');
+    const p = POINTS.find((x) => !rows.some((r) => r['점검항목'] === x[0]))!;
+    const a = await addPoint(page, p, rows.length + 1);
+    const after = await rowsOf(page, 'pt', '점검항목');
+    const row = after.find((r) => r['점검항목'] === p[0]);
+    note(`점검항목 ${rows.length} → ${after.length}행 (저장 메시지 "${a.msg || '없음'}") / 입력 ${fmt(a.entered)}
+목록: ${row ? `점검방법=${row['점검방법']}, 적정기준=${row['적정기준']}` : '행 없음'}`);
+    expect(after.length).toBe(rows.length + 1);
+    expect.soft(row?.['점검방법']).toBe(p[2]);
+    expect.soft(row?.['적정기준']).toBe(p[1]);
   });
 
   test('AD230_TC_039 표준항목을 선택하여 점검항목을 추가한다.', async ({ page }) => {
@@ -344,79 +362,60 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     await openPm(page, state.pmNo!);
     const pt = await sub(page, F_PT_LIST);
     const rows = await new Grid(pt, '점검항목').rows();
-    await new Grid(pt, '점검항목').clickCell('점검항목', rows[0]['점검항목']);
+    const target = rows.find((r) => r['점검항목'].startsWith(TAG)) ?? rows[0];
+    await new Grid(pt, '점검항목').clickCell('점검항목', target['점검항목']);
     await settle(page, 1500);
-    const pd = await sub(page, F_PT_DETAIL);
-    const fields = (await listFields(pd)).filter((x) => !x.readonly);
-    const target = fields.find((x) => /점검방법|적정기준/.test(x.label)) ?? fields.find((x) => x.kind === 'text')!;
-    const value = `${target.label} 재확인 ${STAMP}`;
-    await pd.locator(`[id="${target.id}"]`).fill(value);
+    const pd = await detailFrame(page, D.pt);
+    const value = '체결 토크 42±2 N·m (분기 재확인)';
+    await put(pd.locator('[id="maPmMstrPointDetailDTO.fitBasis"]'), value);
     const msg = await saveForm(page, pd);
     const after = await new Grid(await sub(page, F_PT_LIST), '점검항목').rows();
-    const shown = after.some((r) => Object.values(r).includes(value));
-    note(`${target.label} → "${value}" 저장("${msg || '없음'}"), 목록 반영 ${shown ? '됨' : '안 됨(목록에 없는 칸일 수 있음)'}`);
-    const pd2 = await sub(page, F_PT_DETAIL);
-    expect(await fieldValue(pd2, target.id)).toBe(value);
+    const shown = after.find((r) => r['점검항목'] === target['점검항목'])?.['적정기준'];
+    note(`"${target['점검항목']}" 적정기준 "${target['적정기준']}" → "${value}" 저장("${msg || '없음'}"), 목록 값 "${shown}"`);
+    expect(shown).toBe(value);
   });
 
   test('AD230_TC_041 점검항목을 삭제한다. (체크O / 체크X)', async ({ page }) => {
     await openPm(page, state.pmNo!);
+    let rows = await rowsOf(page, 'pt', '점검항목');
+    // 지울 항목을 먼저 하나 더 추가해서, 삭제 후에도 점검항목이 남게 함
+    const p = POINTS.find((x) => !rows.some((r) => r['점검항목'] === x[0]))!;
+    await addPoint(page, p, rows.length + 1);
+    rows = await rowsOf(page, 'pt', '점검항목');
     const pt = await sub(page, F_PT_LIST);
-    const g = new Grid(pt, '점검항목');
-    const before = (await g.rows()).length;
     // 체크 없이 삭제
     await clickButton(pt, '삭제');
     await settle(page, 800);
-    const ok0 = page.getByText('OK', { exact: true }).first();
-    if (await ok0.isVisible().catch(() => false)) await ok0.click();
+    // 확인창이 뜨면 아무것도 지우지 않도록 Cancel
     const msgNo = await popupMessage(page);
-    // 마지막 행 체크 후 삭제
-    await g.check(before - 1);
-    await clickButton(pt, '삭제');
-    await settle(page, 800);
-    const ok = page.getByText('OK', { exact: true }).first();
-    if (await ok.isVisible().catch(() => false)) await ok.click();
-    await settle(page, 1500);
-    const msg = await popupMessage(page);
-    const after = (await new Grid(await sub(page, F_PT_LIST), '점검항목').rows()).length;
-    note(`체크 없이 삭제 → "${msgNo || '(메시지 없음)'}" / 1행 체크 삭제 → ${before} → ${after}행 ("${msg || '없음'}")`);
+    const c0 = page.getByText('Cancel', { exact: true }).filter({ visible: true }).first();
+    if (await c0.isVisible().catch(() => false)) await c0.click();
+    // 방금 추가한 항목만 체크 후 삭제
+    const msg = await deleteRow(page, 'pt', '점검항목', '점검항목', p[0]);
+    const after = await rowsOf(page, 'pt', '점검항목');
+    note(`체크 없이 삭제 → "${msgNo || '(메시지 없음)'}" / "${p[0]}" 체크 삭제 → ${rows.length} → ${after.length}행 ("${msg || '없음'}"), 남은 항목 ${after.map((r) => r['점검항목']).join(', ')}`);
     expect.soft(msgNo).toMatch(/선택/);
-    expect(after).toBe(before - 1);
+    expect(after.length).toBe(rows.length - 1);
+    expect(after.length).toBeGreaterThan(0);
   });
 
   test('AD230_TC_042 첨부문서를 등록하고 삭제한다. (삭제 후 다시 등록)', async ({ page }) => {
-    const addDoc = async (fileName: string) => {
-      await openPm(page, state.pmNo!);
-      const doc = await sub(page, F_DOC_LIST);
-      await clickButton(doc, '생성');
-      await settle(page, 1500);
-      const dd = await sub(page, F_DOC_DETAIL);
-      const file = test.info().outputPath(fileName);
-      fs.writeFileSync(file, '정기점검 기준서\n1. 임펠러 체결 상태\n2. 베어링 이상음\n3. 씰 누유\n');
-      const fileInput = dd.locator('input[type=file]').first();
-      if (await fileInput.count()) await fileInput.setInputFiles(file);
-      const entered = await fillAllFields(page, dd, {}, STAMP);
-      const msg = await saveForm(page, dd);
-      const rows = await new Grid(await sub(page, F_DOC_LIST), '제목').rows();
-      return { entered, msg, rows };
-    };
-    const { entered, msg, rows } = await addDoc('HighSpeedMixer_점검기준서.txt');
-    note(`첨부문서 저장("${msg || '없음'}") → 목록 ${rows.length}행 / 입력 ${Object.values(entered).map((e) => `${e.label}=${e.value}`).join(', ')}`);
-    expect(rows.length).toBeGreaterThan(0);
-    // 방금 추가한 마지막 행 삭제
-    await new Grid(await sub(page, F_DOC_LIST), '제목').check(rows.length - 1);
-    await clickButton(await sub(page, F_DOC_LIST), '삭제');
-    await settle(page, 800);
-    const ok = page.getByText('OK', { exact: true }).first();
-    if (await ok.isVisible().catch(() => false)) await ok.click();
-    await settle(page, 1500);
-    const msg2 = await popupMessage(page);
-    const after = (await new Grid(await sub(page, F_DOC_LIST), '제목').rows()).length;
+    const base = `${TAG} High Speed Mixer(세종파마텍) 정기점검 기준서`;
+    await openPm(page, state.pmNo!);
+    const before = (await rowsOf(page, 'doc', '제목')).length;
+    const a = await addDoc(page, base, 'HighSpeedMixer_점검기준서.txt');
+    const rows = await rowsOf(page, 'doc', '제목');
+    note(`첨부문서 저장("${a.msg || '없음'}", 파일 ${a.hasFile ? '첨부' : '칸 없음'}) → ${before} → ${rows.length}행 / 입력 ${fmt(a.entered)}`);
+    expect(rows.length).toBe(before + 1);
+    // 방금 추가한 문서 삭제
+    const msg2 = await deleteRow(page, 'doc', '제목', '제목', base);
+    const after = (await rowsOf(page, 'doc', '제목')).length;
     // 빈 상태로 두지 않도록 다시 등록
-    const again = await addDoc('HighSpeedMixer_점검기준서_개정.txt');
-    note(`첨부문서 삭제 → ${after}행 ("${msg2 || '없음'}"), 다시 등록 → ${again.rows.length}행`);
+    const again = await addDoc(page, `${base} 개정본`, 'HighSpeedMixer_점검기준서_개정.txt');
+    const final = (await rowsOf(page, 'doc', '제목')).length;
+    note(`첨부문서 삭제 → ${after}행 ("${msg2 || '없음'}"), 다시 등록("${again.msg || '없음'}") → ${final}행`);
     expect.soft(after).toBe(rows.length - 1);
-    expect(again.rows.length).toBeGreaterThan(0);
+    expect(final).toBeGreaterThan(0);
   });
 
   test('AD230_TC_027 TBM 정기점검주기의 일정을 생성한다.', async ({ page }) => {
@@ -432,7 +431,9 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     for (const p of plans) (byEq[p['설비번호']] ??= []).push(p['작업일자'] || p['점검일자'] || p['초기계획'] || '');
     note(`일정생성 메시지 "${msg || '없음'}", 계획 ${plans.length}건: ${Object.entries(byEq).map(([k, v]) => `${k} [${v.slice(0, 4).join(', ')}${v.length > 4 ? ' …' : ''}] ${v.length}건`).join(' / ')}\n최초작업예정일: ${EQUIP_1}=${state.eq1Date}, ${EQUIP_2}=${state.eq2Date}`);
     expect(plans.length).toBeGreaterThan(0);
-    expect.soft(Object.keys(byEq).sort(), '설비별 계획').toEqual([EQUIP_1, EQUIP_2].sort());
+    // 지금 설비 목록에 있는 설비마다 계획이 있어야 함 (TC_035 에서 EQUIP_2 를 지운 뒤면 EQUIP_1 만)
+    const eqNow = (await rowsOf(page, 'eq', '최초작업예정일')).filter((r) => r['시행여부'] !== 'N').map((r) => r['설비번호']);
+    expect.soft(Object.keys(byEq).sort(), '설비별 계획').toEqual([...new Set(eqNow)].sort());
     expect.soft(byEq[EQUIP_1]?.[0], `${EQUIP_1} 첫 일정 = 최초작업예정일`).toBe(state.eq1Date);
     test.info().annotations.push({ type: 'plans', description: JSON.stringify(byEq) });
   });
@@ -457,7 +458,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     let { d } = await openPm(page, state.pmNo!);
     const before = await readPlans(page, d);
     ({ d } = await openPm(page, state.pmNo!));
-    await d.locator('[id="maPmMstrDetailDTO.cycle"]').fill('2');
+    await put(d.locator('[id="maPmMstrDetailDTO.cycle"]'), '2');
     const msg1 = await saveForm(page, d);
     ({ d } = await openPm(page, state.pmNo!));
     const kept = await readPlans(page, d);
@@ -485,7 +486,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     await clickButton(f, '생성');
     const d = await waitFrame(page, F_DETAIL);
     await settle(page, 1500);
-    await d.locator('[id="maPmMstrDetailDTO.description"]').fill(`저장 전 일정생성 확인 ${STAMP}`);
+    await put(d.locator('[id="maPmMstrDetailDTO.description"]'), `${TAG} 저장 전 일정생성 확인`);
     await clickButton(d, '일정생성');
     await settle(page, 800);
     const ok = page.getByText('OK', { exact: true }).first();
@@ -505,7 +506,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     await fillAllFields(page, d, { ...PM_VALUES, 'maPmMstrDetailDTO.description': uniqueName() }, STAMP);
     const log: string[] = [];
     for (const v of ['0', '-1', '1.5', '가']) {
-      await d.locator('[id="maPmMstrDetailDTO.cycle"]').fill(v);
+      await put(d.locator('[id="maPmMstrDetailDTO.cycle"]'), v);
       const shown = await fieldValue(d, 'maPmMstrDetailDTO.cycle');
       const msg = shown === '' ? '(입력 자체가 막힘)' : await saveForm(page, d);
       const pm = await fieldValue(d, 'maPmMstrDetailDTO.pmNo');
@@ -532,7 +533,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     const back = await fieldValue(d2, 'maPmMstrDetailDTO.description');
     // 최대 길이: maxlength 가 있으면 그 이상 입력 시도
     const long = '가'.repeat(Number(maxLen || 300) + 20);
-    await d2.locator('[id="maPmMstrDetailDTO.description"]').fill(long);
+    await put(d2.locator('[id="maPmMstrDetailDTO.description"]'), long);
     const typed = (await fieldValue(d2, 'maPmMstrDetailDTO.description')).length;
     const msg2 = await saveForm(page, d2);
     note(`특수문자 작업명 저장("${msg || '없음'}") → 다시 열었을 때 "${back}" (${back === special ? '같음' : '다름'})\n최대 길이: maxlength=${maxLen ?? '없음'}, ${long.length}자 입력 시도 → 칸에 ${typed}자, 저장 결과 "${msg2 || '(메시지 없음)'}"`);
@@ -555,8 +556,8 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     await settle(page, 1500);
     const { lovContentFrame, pickInLov } = await import('./support/dream');
     await pickInLov(page, await lovContentFrame(page), EQUIP_1, '설비번호');
-    const ed = await sub(page, F_EQ_DETAIL);
-    await ed.locator('[id="workPmListEquipDetailDTO.initWrkDate"]').fill(dateAfter(7));
+    const ed = await detailFrame(page, D.eq);
+    await put(ed.locator('[id="workPmListEquipDetailDTO.initWrkDate"]'), dateAfter(7));
     await saveForm(page, ed);
     ({ d: d2 } = await openPm(page, pmNo));
     await clickButton(d2, '일정생성');
@@ -606,47 +607,24 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
   });
 
   test('AD230_TC_037 표준작업을 추가하고 삭제한다. (삭제 후 다시 추가)', async ({ page }) => {
-    const addOne = async () => {
-      await openPm(page, state.pmNo!);
-      const lf = await sub(page, F_STD_LIST);
-      const before = (await new Grid(lf, '표준작업명').rows()).length;
-      await clickButton(lf, '생성');
-      await settle(page, 2000);
-      const { lovContentFrame } = await import('./support/dream');
-      const lov = await lovContentFrame(page).catch(() => null);
-      let picked = '';
-      if (lov) {
-        const cell = lov.locator('div.gridbox:visible .objbox tr:visible td:visible').filter({ hasText: /\S/ }).nth(1);
-        picked = (await cell.innerText().catch(() => '')).trim();
-        if (picked) { await cell.click(); await clickButton(lov, '선택'); await settle(page, 1500); } else await closeLov(page);
-      }
-      const dd = page.frames().find((x) => /StdPoint\w*Detail_workPmStdPointHdrList$/.test(x.name()));
-      let msg = '';
-      if (dd && (await dd.locator('a:visible', { hasText: /^\s*저장\s*$/ }).count())) {
-        await fillAllFields(page, dd, {}, STAMP);
-        msg = await saveForm(page, dd);
-      }
-      const after = (await new Grid(await sub(page, F_STD_LIST), '표준작업명').rows()).length;
-      return { before, after, picked, msg };
-    };
-    const a1 = await addOne();
-    // 추가한 마지막 행 삭제
     await openPm(page, state.pmNo!);
-    const g = new Grid(await sub(page, F_STD_LIST), '표준작업명');
-    const n = (await g.rows()).length;
-    await g.check(n - 1);
-    await clickButton(await sub(page, F_STD_LIST), '삭제');
-    await settle(page, 800);
-    const ok = page.getByText('OK', { exact: true }).first();
-    if (await ok.isVisible().catch(() => false)) await ok.click();
-    await settle(page, 1500);
-    const dmsg = await popupMessage(page);
-    const afterDel = (await new Grid(await sub(page, F_STD_LIST), '표준작업명').rows()).length;
-    const a2 = await addOne();
-    note(`추가: "${a1.picked}" ${a1.before} → ${a1.after}행 ("${a1.msg || '없음'}")\n삭제: ${n} → ${afterDel}행 ("${dmsg || '없음'}")\n다시 추가: ${a2.before} → ${a2.after}행`);
-    expect.soft(a1.after).toBe(a1.before + 1);
-    expect.soft(afterDel).toBe(n - 1);
-    expect(a2.after).toBeGreaterThan(0);
+    const before = (await rowsOf(page, 'std', '표준작업명')).length;
+    const a1 = await addStd(page, [], '');
+    const mid = (await rowsOf(page, 'std', '표준작업명')).length;
+    let afterDel = mid;
+    let dmsg = '';
+    if (a1.picked && mid > before) {
+      dmsg = await deleteRow(page, 'std', '표준작업명', '표준작업번호', a1.picked['표준작업번호']);
+      afterDel = (await rowsOf(page, 'std', '표준작업명')).length;
+    }
+    const a2 = await addStd(page, [], '');
+    const final = (await rowsOf(page, 'std', '표준작업명')).length;
+    note(`추가: ${a1.picked ? `${a1.picked['표준작업번호']} ${a1.picked['표준작업명']}` : '-'} ${before} → ${mid}행 ("${a1.msg || '없음'}")
+삭제: ${mid} → ${afterDel}행 ("${dmsg || '없음'}")
+다시 추가: ${a2.picked?.['표준작업명'] ?? '-'} → ${final}행`);
+    expect.soft(mid).toBe(before + 1);
+    expect.soft(afterDel).toBe(mid - 1);
+    expect(final).toBeGreaterThan(0);
   });
 
   test('AD230_TC_035 설비를 삭제한다. (체크O / 체크X)', async ({ page }) => {

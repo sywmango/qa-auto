@@ -1,7 +1,8 @@
 import { test, expect, Page } from '@playwright/test';
 import fs from 'fs';
 import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid, lovContentFrame, pickInLov } from './support/dream';
-import { fillAllFields, readFields, diffFields, saveForm, chooseInLov, loginUserName, closeLov } from './support/form';
+import { rowsOf, deleteRowWhere } from './support/pmi';
+import { fillAllFields, readFields, diffFields, saveForm, chooseInLov, loginUserName, closeLov, leaveField, put } from './support/form';
 
 // 일회성: 테스트로 만든 정기점검주기 정리 (이름에 [sychoi] 표시, 담당자 본인) + 하위 목록 추가
 // 실행 후 이 파일은 지웁니다.
@@ -62,7 +63,7 @@ test.describe('정리', () => {
       const me = await loginUserName(page);
       const d = o!.d;
       await d.locator('[id="maPmMstrDetailDTO.description"]').fill(plan.name);
-      await d.locator('[id="maPmMstrDetailDTO.description"]').press('Tab');
+      await leaveField(d.locator('[id="maPmMstrDetailDTO.description"]'));
       await chooseInLov(page, d, 'maPmMstrDetailDTO.empName', me);
       // 비어 있는 칸도 모두 채움 (사원 칸은 본인)
       const entered = await fillAllFields(page, d, {}, '');
@@ -75,4 +76,24 @@ test.describe('정리', () => {
     });
     // 하위 목록 추가·삭제는 _pmi-sublist.spec.ts
   }
+
+  test('8007 주기 1개월로 되돌림 (EC_015 재실행 전)', async ({ page }) => {
+    const o = await openPm(page, '8007');
+    await put(o!.d.locator('[id="maPmMstrDetailDTO.cycle"]'), '1');
+    const msg = await saveForm(page, o!.d);
+    const o2 = await openPm(page, '8007');
+    note(`주기 → 1 저장 ("${msg || '없음'}")`);
+    expect(await fieldValue(o2!.d, 'maPmMstrDetailDTO.cycle')).toBe('1');
+  });
+
+  test('8007 중복 설비 정리 (EC_014 가 넣은 행)', async ({ page }) => {
+    await openPm(page, '8007');
+    const before = await rowsOf(page, 'eq', '최초작업예정일');
+    const dups = before.filter((r) => r['설비번호'] === '100302AG13');
+    let msg = '중복 없음';
+    if (dups.length > 1) msg = await deleteRowWhere(page, 'eq', '최초작업예정일', (r) => r['설비번호'] === '100302AG13' && r['최초작업예정일'] === '2026-11-08', '100302AG13 2026-11-08');
+    const after = await rowsOf(page, 'eq', '최초작업예정일');
+    note(`8007 설비 ${before.map((r) => `${r['설비번호']}(${r['최초작업예정일']})`).join(', ')} → ${after.map((r) => `${r['설비번호']}(${r['최초작업예정일']})`).join(', ')} ("${msg}")`);
+    expect(after.filter((r) => r['설비번호'] === '100302AG13').length).toBe(1);
+  });
 });
