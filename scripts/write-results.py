@@ -63,8 +63,12 @@ for row in range(6, ws.max_row + 1):
         continue
     r = results[tid]
     ws.cell(row, 8).value = '최신영'
-    ws.cell(row, 9).value = r.get('result', '')
-    ws.cell(row, 10).value = r.get('text', '')
+    # 엑셀 결과 칸은 정상/오류만: 개선은 정상으로 두고 내용 앞에 [개선], 미수행은 결과를 비우고 내용 앞에 [미수행]
+    res = r.get('result', '')
+    excel_res = {'개선': '정상', '확인필요': '정상', '미수행': '', '미실행': ''}.get(res, res)
+    prefix = {'개선': '[개선] ', '확인필요': '[개선] ', '미수행': '[미수행] '}.get(res, '')
+    ws.cell(row, 9).value = excel_res
+    ws.cell(row, 10).value = prefix + r.get('text', '')
     ws.cell(row, 11).value = r.get('date') or today
     ws.cell(row, 12).value = r.get('attach', '')
     ws.cell(row, 17).value = r.get('data', '')

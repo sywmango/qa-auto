@@ -21,11 +21,11 @@ for (const c of cases) {
 }
 
 const count = (r) => cases.filter((c) => c.result === r).length;
-const sum = { total: cases.length, ok: count('정상'), ng: count('오류'), check: count('확인필요'), skip: count('미수행'), none: count('미실행') };
-const badge = (r) => `<span class="b ${{ 정상: 'ok', 오류: 'ng', 확인필요: 'ck', 미수행: 'sk' }[r] || 'no'}">${esc(r)}</span>`;
+const sum = { total: cases.length, ok: count('정상'), ng: count('오류'), check: count('개선'), skip: count('미수행'), none: count('미실행') };
+const badge = (r) => `<span class="b ${{ 정상: 'ok', 오류: 'ng', 개선: 'ck', 미수행: 'sk' }[r] || 'no'}">${esc(r)}</span>`;
 const img = (p) => (fs.existsSync(p) ? `data:image/png;base64,${fs.readFileSync(p).toString('base64')}` : '');
 
-const issues = cases.filter((c) => c.result === '오류' || c.result === '확인필요');
+const issues = cases.filter((c) => c.result === '오류' || c.result === '개선');
 const skipped = cases.filter((c) => c.result === '미수행' || c.result === '미실행');
 
 const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><style>
@@ -47,13 +47,13 @@ table.fix { table-layout: fixed; }
 <div class="sub">Dream 4.1 (QA) · 작업관리 > 정기점검작업 > 정기점검주기 · 작성 ${esc(info.date || new Date().toISOString().slice(0, 10))} · 테스트 ${esc(info.tester || '최신영')}</div>
 
 <h2>1. 요약</h2>
-<div class="kpi"><div>전체<b>${sum.total}</b></div><div>정상<b>${sum.ok}</b></div><div>오류<b>${sum.ng}</b></div><div>확인필요<b>${sum.check}</b></div><div>미수행·미실행<b>${sum.skip + sum.none}</b></div></div>
+<div class="kpi"><div>전체<b>${sum.total}</b></div><div>정상<b>${sum.ok}</b></div><div>오류<b>${sum.ng}</b></div><div>개선<b>${sum.check}</b></div><div>미수행·미실행<b>${sum.skip + sum.none}</b></div></div>
 ${info.summary ? `<p>${br(info.summary)}</p>` : ''}
 
 <h2>2. 환경과 범위</h2>
 <table>${Object.entries(info.env || {}).map(([k, v]) => `<tr><th style="width:22%">${esc(k)}</th><td>${br(v)}</td></tr>`).join('')}</table>
 
-<h2>3. 오류·확인필요 항목</h2>
+<h2>3. 오류·개선 항목</h2>
 ${issues.length ? `<table class="fix"><tr><th style="width:13%">ID</th><th style="width:20%">케이스</th><th style="width:25%">기대결과</th><th>실제결과</th></tr>${issues.map((c) => `<tr><td>${esc(c.id)}<br>${badge(c.result)}</td><td>${br(c.case)}</td><td>${br(c.expected)}</td><td class="t">${br(c.text)}</td></tr>`).join('')}</table>` : '<p>없음</p>'}
 ${(info.shots || []).map((s) => (img(s.path) ? `<div class="shot"><b>${esc(s.title)}</b><br><img src="${img(s.path)}"></div>` : '')).join('')}
 
@@ -66,7 +66,7 @@ ${(info.extra || []).length ? `<h2>5. 추가 확인 (테스트 데이터 정리)
 <h2>6. 테스트가 만든 데이터 (삭제하지 않음)</h2>
 <table><tr><th>예방작업번호</th><th>작업명</th><th>비고</th></tr>${(info.data || []).map((d) => `<tr><td>${esc(d.no)}</td><td>${esc(d.name)}</td><td>${br(d.note)}</td></tr>`).join('')}</table>
 
-<h2>7. 미수행·미실행 사유</h2>
+<h2>7. 미수행 사유 (이번 차수 추가 실행 가능 여부)</h2>
 ${skipped.length ? `<table><tr><th style="width:14%">ID</th><th>케이스</th><th>사유</th></tr>${skipped.map((c) => `<tr><td>${esc(c.id)}</td><td>${br(c.case)}</td><td>${br(c.text || '자동화 대상 아님')}</td></tr>`).join('')}</table>` : '<p>없음</p>'}
 </body></html>`;
 
