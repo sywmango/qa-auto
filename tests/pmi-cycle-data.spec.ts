@@ -290,10 +290,16 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     try {
       const lov = await lovContentFrame(page);
       const total = await lov.evaluate(() => (document.body.innerText.match(/Total\s*:\s*[\d,]+\s*\/\s*[\d,]+/g) || []).pop() || '');
-      const box = lov.locator('div.gridbox:visible .objbox tr:visible img[src*="item_chk"]').first();
-      if (await box.isVisible().catch(() => false)) { await box.click(); picked = '첫 행 체크'; }
-      else { await lov.locator('div.gridbox:visible .objbox tr:visible td:visible').nth(1).click(); picked = '첫 행 클릭'; }
+      // 주기에 아직 없는 표준점검항목 행을 체크 (같은 항목이 이미 있으면 중복으로 막힐 수 있음)
+      const have = (await new Grid(pt, '점검항목').rows()).map((r) => r['점검항목']);
+      const lrows = await new Grid(lov, '점검항목').rows();
+      const idx = Math.max(0, lrows.findIndex((r) => !have.includes(r['점검항목'])));
+      await new Grid(lov, '점검항목').check(idx);
+      picked = `"${lrows[idx]?.['점검항목']}" 체크`;
       await clickButton(lov, '선택');
+      await settle(page, 1500);
+      const okBtn = page.getByText('OK', { exact: true }).filter({ visible: true }).first();
+      if (await okBtn.isVisible().catch(() => false)) { await okBtn.click(); picked += ', 확인창 OK'; }
       await settle(page, 2000);
       picked += ` (팝업 ${total})`;
     } catch (e) {
