@@ -2,7 +2,7 @@ import { test, expect, Page, Frame } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid } from './support/dream';
-import { D, detailFrame, rowsOf, deleteRow, deleteRowWhere, addStd, addPoint, addDoc, fmt, POINTS } from './support/pmi';
+import { D, detailFrame, rowsOf, deleteRow, deleteRowWhere, addStd, addPoint, addDoc, fmt, POINTS, uniqueName, PM_VALUES, remember, readPlans } from './support/pmi';
 import {
   fillAllFields, readFields, diffFields, diffWithRow, saveForm, popupMessage, chooseInLov, closeLov,
   listFields, dateAfter, Entered, TAG, leaveField, put,
@@ -21,55 +21,18 @@ const F_EQ_LIST = 'tabFrameTAB.workPmListRInsEquipList_workPmListRInsDetail';
 const F_PT_LIST = 'tabFrameTAB.maPmMstrPointList_workPmListRInsDetail';
 const STAMP = new Date().toISOString().slice(5, 16).replace(/[-T:]/g, '');
 // test-results 폴더는 실행할 때마다 지워지므로 playwright/.data 에 보관
-const CREATED = path.join('playwright', '.data', 'pmi-created.json');
 const STATE = path.join('playwright', '.data', 'pmi-state.json');
-const NAMES = path.join('playwright', '.data', 'pmi-names.json');
 
-/** 실행마다 겹치지 않는 현실적인 작업명 ([sychoi] + 설비 + 점검 종류) */
-function uniqueName(): string {
-  const used: string[] = fs.existsSync(NAMES) ? JSON.parse(fs.readFileSync(NAMES, 'utf8')) : [];
-  const equips = ['High Speed Mixer(세종파마텍)', 'High Speed Mixer(금성산기)', 'Double Cone Mixer(일성기공)', 'Drum Mixer(일성기공)', '유동층과립건조기', '타정기(Kikusui 18)', '코팅기 PKC-60', '캡슐충전기(세종)'];
-  const kinds = ['월간 정기점검', '분기 정밀점검', '베어링 윤활 점검', '진동 측정 점검', '전기 절연 점검', '안전장치 작동 점검', '씰·패킹 누유 점검', '구동벨트 장력 점검'];
-  for (const k of kinds) for (const e of equips) {
-    const name = `${TAG} ${e} ${k}`;
-    if (!used.includes(name)) {
-      used.push(name);
-      fs.mkdirSync(path.dirname(NAMES), { recursive: true });
-      fs.writeFileSync(NAMES, JSON.stringify(used));
-      return name;
-    }
-  }
-  return `${TAG} 정기점검 ${STAMP}`;
-}
 
 // 설비는 Lov에서 고름 (운영설비, 안성공장 고형제 라인)
 const EQUIP_1 = '100302AG13';
 const EQUIP_2 = '100305AG17';
 
-// PM 상세 폼에서 정해 두는 값 (나머지 칸은 fillAllFields 가 채움)
-const PM_VALUES: Record<string, string | null> = {
-  // 작업명은 테스트마다 uniqueName() 으로 넣음
-  'maPmMstrDetailDTO.isActiveDesc': 'Y',
-  'maPmMstrDetailDTO.scheduleTypeDesc': 'TBM',
-  'maPmMstrDetailDTO.cycle': '1',
-  'maPmMstrDetailDTO.periodTypeDesc': '월 주기',
-  'maPmMstrDetailDTO.woResBef': '7',
-  'maPmMstrDetailDTO.wrkcalListDesc': '기본 달력',
-  'maPmMstrDetailDTO.isReschedDesc': 'N',
-  'maPmMstrDetailDTO.predWoTimeMin': '40',
-  'maPmMstrDetailDTO.remark': '임펠러 체결 상태, 베어링 이상음, 씰 누유 확인',
-};
 
 const state: { pmNoN?: string; pmNo?: string; name?: string; entered?: Entered; eq1Date?: string; eq2Date?: string } = {};
 
 function note(text: string) {
   test.info().annotations.push({ type: '실제결과', description: text });
-}
-function remember(pmNo: string) {
-  const list: string[] = fs.existsSync(CREATED) ? JSON.parse(fs.readFileSync(CREATED, 'utf8')) : [];
-  if (!list.includes(pmNo)) list.push(pmNo);
-  fs.mkdirSync(path.dirname(CREATED), { recursive: true });
-  fs.writeFileSync(CREATED, JSON.stringify(list));
 }
 
 async function openCond(page: Page) {
@@ -96,37 +59,6 @@ async function openPm(page: Page, pmNo: string) {
 /** 하위 목록 프레임 (상세가 열린 뒤) */
 const sub = (page: Page, name: string) => waitFrame(page, name);
 
-/** Linked > 점검일정 새 창에서 이 예방작업번호의 계획 목록을 읽습니다. */
-async function readPlans(page: Page, d: Frame) {
-  // Linked 메뉴가 펼쳐질 때까지 (한 번에 안 펼쳐지는 경우가 있음)
-  const link = d.locator('a.link_pmrinssched');
-  for (let i = 0; i < 3 && !(await link.isVisible().catch(() => false)); i++) {
-    await clickButton(d, 'Linked');
-    await page.waitForTimeout(1000);
-  }
-  const winP = page.context().waitForEvent('page', { timeout: 15_000 });
-  await link.click();
-  const win = await winP;
-  await settle(win, 3000);
-  // 새 창은 일정조정 일자가 '지난달 1일 ~ 오늘'로 걸려 있어 앞으로의 계획이 안 보임 → 오늘-30일 ~ 1년 뒤로 넓혀 다시 검색
-  const range = win.locator('div.field', { has: win.locator('label', { hasText: /^\s*일정조정 일자\s*$/ }) }).locator('input:visible');
-  if ((await range.count()) >= 2) {
-    await put(range.nth(0), dateAfter(-30));
-    await put(range.nth(1), dateAfter(400));
-    await win.locator('a.b_search:visible').first().click();
-    await settle(win, 3000);
-  }
-  let rows: Record<string, string>[] = [];
-  for (let i = 0; i < 10 && !rows.length; i++) {
-    for (const fr of win.frames()) {
-      const has = await fr.evaluate(() => [...document.querySelectorAll('.hdrcell')].some((h) => (h as HTMLElement).innerText.trim() === '예방작업번호')).catch(() => false);
-      if (has) { rows = await new Grid(fr, '예방작업번호').rows(); break; }
-    }
-    if (!rows.length) await win.waitForTimeout(1000);
-  }
-  await win.close();
-  return rows;
-}
 
 test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
   test.setTimeout(240_000);

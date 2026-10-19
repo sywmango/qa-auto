@@ -17,6 +17,7 @@ if os.path.exists(dst):
         sys.exit(f'{dst} 가 열려 있습니다. 엑셀을 닫고 다시 실행하세요.')
 
 results = {}
+merged = {}
 
 
 def walk(suite):
@@ -44,12 +45,22 @@ for f in sorted(glob.glob(os.path.join(res_dir, '*.json')), key=os.path.getmtime
                 err = (r.get('error') or {}).get('message', '')
                 err = re.sub(r'\x1b\[[0-9;]*m', '', err).split('\n')[0][:200]
                 when = r.get('startTime', '')[:10]
-                results[m.group(1)] = {
+                entry = {
                     'result': '정상' if status == 'passed' else '미수행' if status == 'skipped' else '오류',
                     'text': '\n'.join(notes + skip + ([f'오류: {err}'] if status not in ('passed', 'skipped') and err else [])),
                     'date': when,
                     'attach': '',  # 실패 스크린샷은 test-results 가 실행마다 지워지므로 증적은 수동결과.json 의 attach 로 지정
                 }
+                key = m.group(1)
+                # 한 ID 를 여러 테스트로 나눈 경우(같은 결과 파일 안) 합침: 하나라도 오류면 오류
+                prev = merged.get(key)
+                if prev and prev.get('_file') == f:
+                    rank = {'오류': 2, '미수행': 1, '정상': 0}
+                    entry['result'] = max(prev['result'], entry['result'], key=lambda x: rank.get(x, 0))
+                    entry['text'] = prev['text'] + '\n' + entry['text']
+                entry['_file'] = f
+                merged[key] = entry
+                results[key] = entry
 
 results.update({k: {**results.get(k, {}), **v} for k, v in manual.items()})
 
@@ -68,7 +79,8 @@ for row in range(6, ws.max_row + 1):
     excel_res = {'개선': '정상', '확인필요': '정상', '미수행': '', '미실행': ''}.get(res, res)
     prefix = {'개선': '[개선] ', '확인필요': '[개선] ', '미수행': '[미수행] '}.get(res, '')
     ws.cell(row, 9).value = excel_res
-    ws.cell(row, 10).value = prefix + r.get('text', '')
+    # 정상은 QA내용을 비움 (개선으로 정상 처리한 행은 [개선] 내용을 남김)
+    ws.cell(row, 10).value = '' if res == '정상' else prefix + r.get('text', '')
     ws.cell(row, 11).value = r.get('date') or today
     ws.cell(row, 12).value = r.get('attach', '')
     ws.cell(row, 17).value = r.get('data', '')

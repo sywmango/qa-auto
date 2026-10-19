@@ -1,7 +1,8 @@
 import { test, expect, Page, Frame } from '@playwright/test';
 import fs from 'fs';
+import path from 'path';
 import { openMenu, waitFrame, clickButton, clickTab, settle, Grid, lovContentFrame, pickInLov } from './dream';
-import { fillAllFields, listFields, saveForm, popupMessage, closeLov, Entered } from './form';
+import { fillAllFields, listFields, saveForm, popupMessage, closeLov, Entered, TAG, put, dateAfter } from './form';
 
 // 정기점검주기(AD230) 화면 부품: 상세 열기, 하위 목록(설비·표준작업·점검항목·첨부문서) 추가·삭제
 
@@ -163,4 +164,81 @@ export async function addDoc(page: Page, title: string, fileName: string) {
   const entered = await fillAllFields(page, dd, over);
   const msg = await saveForm(page, dd);
   return { entered, msg, hasFile };
+}
+
+// ---- 주기 만들기·일정 조회 공용 ----
+
+const CREATED = path.join('playwright', '.data', 'pmi-created.json');
+const NAMES = path.join('playwright', '.data', 'pmi-names.json');
+const STAMP = new Date().toISOString().slice(5, 16).replace(/[-T:]/g, '');
+
+/** 테스트가 만든 예방작업번호 기록 (삭제하지 않음) */
+export function remember(pmNo: string) {
+  const list: string[] = fs.existsSync(CREATED) ? JSON.parse(fs.readFileSync(CREATED, 'utf8')) : [];
+  if (!list.includes(pmNo)) list.push(pmNo);
+  fs.mkdirSync(path.dirname(CREATED), { recursive: true });
+  fs.writeFileSync(CREATED, JSON.stringify(list));
+}
+
+/** 실행마다 겹치지 않는 현실적인 작업명 ([sychoi] + 설비 + 점검 종류) */
+export function uniqueName(): string {
+  const used: string[] = fs.existsSync(NAMES) ? JSON.parse(fs.readFileSync(NAMES, 'utf8')) : [];
+  const equips = ['High Speed Mixer(세종파마텍)', 'High Speed Mixer(금성산기)', 'Double Cone Mixer(일성기공)', 'Drum Mixer(일성기공)', '유동층과립건조기', '타정기(Kikusui 18)', '코팅기 PKC-60', '캡슐충전기(세종)'];
+  const kinds = ['월간 정기점검', '분기 정밀점검', '베어링 윤활 점검', '진동 측정 점검', '전기 절연 점검', '안전장치 작동 점검', '씰·패킹 누유 점검', '구동벨트 장력 점검'];
+  for (const k of kinds) for (const e of equips) {
+    const name = `${TAG} ${e} ${k}`;
+    if (!used.includes(name)) {
+      used.push(name);
+      fs.mkdirSync(path.dirname(NAMES), { recursive: true });
+      fs.writeFileSync(NAMES, JSON.stringify(used));
+      return name;
+    }
+  }
+  return `${TAG} 정기점검 ${STAMP}`;
+}
+
+// PM 상세 폼에서 정해 두는 값 (나머지 칸은 fillAllFields 가 채움)
+export const PM_VALUES: Record<string, string | null> = {
+  // 작업명은 테스트마다 uniqueName() 으로 넣음
+  'maPmMstrDetailDTO.isActiveDesc': 'Y',
+  'maPmMstrDetailDTO.scheduleTypeDesc': 'TBM',
+  'maPmMstrDetailDTO.cycle': '1',
+  'maPmMstrDetailDTO.periodTypeDesc': '월 주기',
+  'maPmMstrDetailDTO.woResBef': '7',
+  'maPmMstrDetailDTO.wrkcalListDesc': '기본 달력',
+  'maPmMstrDetailDTO.isReschedDesc': 'N',
+  'maPmMstrDetailDTO.predWoTimeMin': '40',
+  'maPmMstrDetailDTO.remark': '임펠러 체결 상태, 베어링 이상음, 씰 누유 확인',
+};
+
+/** Linked > 점검일정 새 창에서 이 예방작업번호의 계획 목록을 읽습니다. */
+export async function readPlans(page: Page, d: Frame) {
+  // Linked 메뉴가 펼쳐질 때까지 (한 번에 안 펼쳐지는 경우가 있음)
+  const link = d.locator('a.link_pmrinssched');
+  for (let i = 0; i < 3 && !(await link.isVisible().catch(() => false)); i++) {
+    await clickButton(d, 'Linked');
+    await page.waitForTimeout(1000);
+  }
+  const winP = page.context().waitForEvent('page', { timeout: 15_000 });
+  await link.click();
+  const win = await winP;
+  await settle(win, 3000);
+  // 새 창은 일정조정 일자가 '지난달 1일 ~ 오늘'로 걸려 있어 앞으로의 계획이 안 보임 → 오늘-30일 ~ 1년 뒤로 넓혀 다시 검색
+  const range = win.locator('div.field', { has: win.locator('label', { hasText: /^\s*일정조정 일자\s*$/ }) }).locator('input:visible');
+  if ((await range.count()) >= 2) {
+    await put(range.nth(0), dateAfter(-30));
+    await put(range.nth(1), dateAfter(400));
+    await win.locator('a.b_search:visible').first().click();
+    await settle(win, 3000);
+  }
+  let rows: Record<string, string>[] = [];
+  for (let i = 0; i < 10 && !rows.length; i++) {
+    for (const fr of win.frames()) {
+      const has = await fr.evaluate(() => [...document.querySelectorAll('.hdrcell')].some((h) => (h as HTMLElement).innerText.trim() === '예방작업번호')).catch(() => false);
+      if (has) { rows = await new Grid(fr, '예방작업번호').rows(); break; }
+    }
+    if (!rows.length) await win.waitForTimeout(1000);
+  }
+  await win.close();
+  return rows;
 }
