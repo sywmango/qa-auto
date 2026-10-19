@@ -33,7 +33,7 @@ export async function waitFrame(page: Page, name: string | RegExp, timeout = 15_
 export async function clickButton(scope: Frame, text: string) {
   const btn = scope.locator('a:visible', { hasText: new RegExp(`^\\s*${text}\\s*$`) }).first();
   // 닫힌 팝업의 투명 덮개(dhx_modal_cover)가 남아 클릭을 가로채는 경우가 있어, 막히면 강제로 클릭
-  await btn.click({ timeout: 15_000 }).catch(() => btn.click({ force: true }));
+  await btn.click({ timeout: 15_000 }).catch(() => btn.click({ force: true, timeout: 15_000 }));
 }
 
 /** 화면 위쪽 탭(목록(위치), 목록(조건) 등)을 클릭합니다. */

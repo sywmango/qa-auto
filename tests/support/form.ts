@@ -91,12 +91,19 @@ export async function chooseInLov(page: Page, scope: Frame, id: string, pick?: s
   await settle(page, 1500);
   const lov = await lovContentFrame(page);
   const cells = lov.locator('div.gridbox:visible .objbox tr:visible td:visible');
+  // 고를 데이터가 없는 Lov(예: 부위가 등록되지 않은 설비의 점검부위)는 닫고 건너뜀
+  if (!pick && !(await cells.filter({ hasText: /\S/ }).count())) {
+    if (process.env.QA_DEBUG) console.log('[fill]', id, 'Lov 에 고를 데이터 없음 → 건너뜀');
+    await closeLov(page);
+    return false;
+  }
   const cell = pick
     ? lov.locator('div.gridbox:visible .objbox td:visible', { hasText: new RegExp(`^\\s*${escapeRe(pick)}\\s*$`) }).first()
     : cells.filter({ hasText: /\S/ }).nth(1); // 0번은 체크박스/순번일 수 있어 1번 칸
   await cell.click();
   await clickButton(lov, '선택');
   await settle(page, 1000);
+  return true;
 }
 
 /** 열린 Lov 팝업 닫기 (팝업 안 오른쪽 위 X) */
@@ -179,12 +186,40 @@ const normalize = (s: string) => s.replace(/,/g, '').replace(/\s+/g, ' ').trim()
 
 /** 저장 → "저장하시겠습니까?" OK → 결과 메시지가 있으면 읽고 [확인]으로 닫음 */
 export async function saveForm(page: Page, scope: Frame) {
-  await clickButton(scope, '저장');
+  const dbg = (s: string) => { if (process.env.QA_DEBUG) console.log('[save]', new Date().toISOString().slice(11, 19), s); };
+  dbg('저장 클릭');
+  // 상세 화면을 아래로 내리면 버튼 줄이 상위 화면의 고정 머리줄로 옮겨 가고 원래 자리 버튼은 숨겨집니다.
+  // 상위 화면의 버튼은 다른 폼(예: 정기점검주기 본문) 것일 수 있으므로 쓰지 않고,
+  // 이 프레임의 저장 버튼이 숨겨져 있으면 그 버튼을 직접 눌러(click 이벤트) 이 폼을 저장합니다.
+  const visibleSave = await scope.locator('a:visible', { hasText: /^\s*저장\s*$/ }).count().catch(() => 0);
+  if (visibleSave) await clickButton(scope, '저장');
+  else {
+    const done = await scope.evaluate(() => {
+      const a = [...document.querySelectorAll('a')].find((x) => (x.textContent || '').trim() === '저장');
+      if (a) (a as HTMLElement).click();
+      return !!a;
+    });
+    dbg(`저장 버튼이 보이지 않음 → ${done ? '이 프레임의 숨은 버튼을 직접 누름' : '버튼이 상위 머리줄로 옮겨 감'}`);
+    if (!done) {
+      // 버튼 줄 자체가 상위 프레임 고정 머리줄로 옮겨 간 경우 (정기점검주기 본문에서 확인됨)
+      let p = scope.parentFrame();
+      while (p && !(await p.locator('a:visible', { hasText: /^\s*저장\s*$/ }).count().catch(() => 0))) p = p.parentFrame();
+      if (!p) throw new Error('저장 버튼을 찾지 못함');
+      dbg(`상위 프레임 "${p.name() || '(메인)'}" 의 저장 버튼 사용`);
+      await clickButton(p, '저장');
+    }
+  }
   await settle(page, 800);
-  const ok = page.getByText('OK', { exact: true }).first();
-  if (await ok.isVisible().catch(() => false)) await ok.click();
+  // 확인창 OK: 보이는 것만, 덮개에 막히면 강제 클릭 (기다림이 끝없이 이어지지 않게 시간 제한)
+  const ok = page.getByText('OK', { exact: true }).filter({ visible: true }).first();
+  if (await ok.isVisible().catch(() => false)) {
+    dbg('OK 클릭');
+    await ok.click({ timeout: 10_000 }).catch(() => ok.click({ force: true, timeout: 10_000 }));
+  } else dbg('OK 확인창 없음');
   await settle(page, 1500);
-  return popupMessage(page);
+  const msg = await popupMessage(page);
+  dbg(`안내 메시지 "${msg}"`);
+  return msg;
 }
 
 /** 화면 가운데 뜬 안내 메시지(확인 버튼)가 있으면 글자를 읽고 닫습니다. */
@@ -192,11 +227,17 @@ export async function popupMessage(page: Page) {
   const btn = page.getByText('확인', { exact: true }).filter({ visible: true }).first();
   if (!(await btn.isVisible().catch(() => false))) return '';
   const text = await btn.evaluate((b) => {
+    // 메시지 상자: 확인 버튼에서 위로 올라가며 글자가 생기는 가장 가까운 상자 (화면 전체 글자를 읽지 않도록 300자 이하)
     let x: HTMLElement | null = b as HTMLElement;
-    for (let i = 0; i < 4 && x; i++) x = x.parentElement;
-    return (x?.innerText || '').replace('확인', '').trim();
+    let best = '';
+    for (let i = 0; i < 6 && x; i++, x = x.parentElement) {
+      const t = (x.innerText || '').replace(/확인\s*$/, '').trim();
+      if (t.length > 300) break;
+      if (t) best = t;
+    }
+    return best;
   });
-  await btn.click();
+  await btn.click({ timeout: 10_000 }).catch(() => btn.click({ force: true, timeout: 10_000 }));
   await settle(page, 500);
   return text;
 }

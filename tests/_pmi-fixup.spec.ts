@@ -40,7 +40,7 @@ async function openPm(page: Page, pmNo: string) {
 }
 
 test.describe('정리', () => {
-  test.setTimeout(600_000);
+  test.setTimeout(300_000);
 
   test('테스트로 만든 예방작업번호 확인', async ({ page }) => {
     // 시행여부 조건을 비우고 전체 검색 → 예방작업번호 7990 이상만 추림 (한 번의 검색)
@@ -73,49 +73,6 @@ test.describe('정리', () => {
       expect(await fieldValue(o2!.d, 'maPmMstrDetailDTO.description')).toBe(plan.name);
       expect(await fieldValue(o2!.d, 'maPmMstrDetailDTO.empName')).toBe(me);
     });
-
-    test(`${pmNo} 하위 목록 추가 (설비, 표준작업, 점검항목, 첨부문서)`, async ({ page }) => {
-      const log: string[] = [];
-      for (const [key, [listName, detailName, header]] of Object.entries(SUBS)) {
-        const o = await openPm(page, pmNo);
-        expect(o).toBeTruthy();
-        const lf = await waitFrame(page, listName);
-        const before = (await new Grid(lf, header).rows()).length;
-        await clickButton(lf, '생성');
-        await settle(page, 2000);
-        // 생성하면 Lov 가 바로 뜨는 목록(설비, 표준작업): 팝업에서 고름
-        const pop = page.frames().find((x) => x.name() === 'popupIframe1');
-        const popupOpen = !!pop && (await pop.locator('div.b_pwin_close').isVisible().catch(() => false));
-        let picked = '';
-        if (popupOpen) {
-          const lov = await lovContentFrame(page).catch(() => null);
-          if (lov && key === 'eq') { await pickInLov(page, lov, plan.equip[0], '설비번호'); picked = plan.equip[0]; }
-          else if (lov) {
-            const cell = lov.locator('div.gridbox:visible .objbox tr:visible td:visible').filter({ hasText: /\S/ }).nth(1);
-            picked = (await cell.innerText().catch(() => '')).trim();
-            if (picked) { await cell.click(); await clickButton(lov, '선택'); await settle(page, 1500); }
-            else { await closeLov(page); picked = '(Lov 에 고를 데이터 없음)'; }
-          }
-        }
-        const dd = await waitFrame(page, detailName as string | RegExp).catch(() => null);
-        let entered = {} as Awaited<ReturnType<typeof fillAllFields>>;
-        let msg = '';
-        if (dd) {
-          if (key === 'doc') {
-            const file = test.info().outputPath('HighSpeedMixer_정기점검기준서.txt');
-            fs.writeFileSync(file, 'High Speed Mixer 정기점검 기준서\n1. 임펠러 체결 상태\n2. 베어링 이상음\n3. 씰 누유\n');
-            const fi = dd.locator('input[type=file]').first();
-            if (await fi.count()) await fi.setInputFiles(file);
-          }
-          const over: Record<string, string> = key === 'eq' ? { 'workPmListEquipDetailDTO.remark': `${plan.name.replace('[sychoi] ', '')} 대상 설비` } : {};
-          entered = await fillAllFields(page, dd, over, '');
-          msg = await saveForm(page, dd);
-        }
-        const after = (await new Grid(await waitFrame(page, listName), header).rows()).length;
-        log.push(`[${key}] ${popupOpen ? `Lov 선택 "${picked}", ` : ''}입력 ${Object.values(entered).map((e) => `${e.label}=${e.value}`).join(', ')} → 저장 "${msg || '없음'}", 행 ${before} → ${after}`);
-        expect.soft(after, `${key} 행이 늘어야 함`).toBeGreaterThan(before);
-      }
-      note(log.join('\n'));
-    });
+    // 하위 목록 추가·삭제는 _pmi-sublist.spec.ts
   }
 });
