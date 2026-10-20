@@ -122,6 +122,10 @@
   {
    "title": "TC_035·TC_041 [개선] 체크 없이 삭제 → 안내 없이 삭제 확인창 (10-19 캡처)",
    "path": "playwright/.data/evidence/TC_041_체크없이삭제_확인창.png"
+  },
+  {
+   "title": "TC_026 [오류] Tab 설정에서 상세 탭 숨김(N) 후 [초기화] → 설정은 Y 인데 행을 눌러도 상세 화면이 안 열림 (다시 로그인하면 열림)",
+   "path": "playwright/.data/evidence/err-TC_026.png"
   }
  ],
  "title": "정기점검주기(AD230)",
