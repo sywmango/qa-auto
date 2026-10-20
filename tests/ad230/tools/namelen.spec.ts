@@ -1,8 +1,8 @@
 import { test } from '@playwright/test';
 import fs from 'fs';
-import { fieldValue, waitFrame } from './support/dream';
-import { put, saveForm } from './support/form';
-import { openPm, F_DETAIL } from './support/pmi';
+import { fieldValue, waitFrame } from '../../support/dream';
+import { put, saveForm } from '../../support/form';
+import { openPm, F_DETAIL } from '../../support/pmi';
 
 // 작업명 길이 제한 확인 (TC_021·EC_013): 바이트(UTF-8) 수를 바꿔 저장되는지. 끝나면 원래 이름으로 되돌림.
 const MAIN: string = JSON.parse(fs.readFileSync('playwright/.data/pmi-state.json', 'utf8')).pmNo;

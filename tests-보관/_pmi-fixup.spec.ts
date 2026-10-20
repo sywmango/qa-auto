@@ -1,8 +1,8 @@
 import { test, expect, Page } from '@playwright/test';
 import fs from 'fs';
-import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid, lovContentFrame, pickInLov } from './support/dream';
-import { rowsOf, deleteRowWhere } from './support/pmi';
-import { fillAllFields, readFields, diffFields, saveForm, chooseInLov, loginUserName, closeLov, leaveField, put } from './support/form';
+import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid, lovContentFrame, pickInLov } from '../tests/support/dream';
+import { rowsOf, deleteRowWhere } from '../tests/support/pmi';
+import { fillAllFields, readFields, diffFields, saveForm, chooseInLov, loginUserName, closeLov, leaveField, put } from '../tests/support/form';
 
 // 일회성: 테스트로 만든 정기점검주기 정리 (이름에 [sychoi] 표시, 담당자 본인) + 하위 목록 추가
 // 실행 후 이 파일은 지웁니다.

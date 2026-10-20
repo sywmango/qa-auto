@@ -1,7 +1,7 @@
 import { test } from '@playwright/test';
 import fs from 'fs';
-import { openMenu, waitFrame, clickTab, settle, Grid } from './support/dream';
-import { F_COND } from './support/pmi';
+import { openMenu, waitFrame, clickTab, settle, Grid } from '../../support/dream';
+import { F_COND } from '../../support/pmi';
 
 // [sychoi] 주기 목록 (보고서의 테스트 데이터 목록용, 읽기만)
 test('[sychoi] 주기 목록', async ({ page }) => {

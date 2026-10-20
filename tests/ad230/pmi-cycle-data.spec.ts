@@ -1,12 +1,12 @@
 import { test, expect, Page, Frame } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid } from './support/dream';
-import { D, detailFrame, rowsOf, deleteRow, deleteRowWhere, addStd, addPoint, addDoc, fmt, POINTS, uniqueName, PM_VALUES, pmValues, remember, readPlans } from './support/pmi';
+import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid } from '../support/dream';
+import { D, detailFrame, rowsOf, deleteRow, deleteRowWhere, addStd, addPoint, addDoc, fmt, POINTS, uniqueName, PM_VALUES, pmValues, remember, readPlans } from '../support/pmi';
 import {
   fillAllFields, readFields, diffFields, diffWithRow, saveForm, popupMessage, chooseInLov, closeLov,
   listFields, dateAfter, Entered, TAG, leaveField, put,
-} from './support/form';
+} from '../support/form';
 
 // 작업관리 > 정기점검작업 > 정기점검주기 (AD230) — 데이터를 만들고 바꾸는 케이스
 // 순서가 필요한 흐름이라 한 파일에서 위에서 아래로 차례대로 실행합니다. (serial)
@@ -179,7 +179,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
       const popup = page.frames().find((x) => x.name() === 'popupIframe1');
       const ed = await detailFrame(page, D.eq);
       if (popup && (await popup.locator('div.b_pwin_close').isVisible().catch(() => false))) {
-        const { lovContentFrame, pickInLov } = await import('./support/dream');
+        const { lovContentFrame, pickInLov } = await import('../support/dream');
         const lov = await lovContentFrame(page);
         await pickInLov(page, lov, code, '설비번호');
       } else {
@@ -216,7 +216,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     const eq = await sub(page, F_EQ_LIST);
     await clickButton(eq, '생성');
     await settle(page, 1500);
-    const { lovContentFrame, pickInLov } = await import('./support/dream');
+    const { lovContentFrame, pickInLov } = await import('../support/dream');
     await pickInLov(page, await lovContentFrame(page), EQUIP_1, '설비번호');
     const ed = await detailFrame(page, D.eq);
     const dup = dateAfter(20);
@@ -286,7 +286,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     const before = (await new Grid(pt, '점검항목').rows()).length;
     await clickButton(pt, '표준항목선택');
     await settle(page, 2500);
-    const { lovContentFrame } = await import('./support/dream');
+    const { lovContentFrame } = await import('../support/dream');
     let picked = '';
     try {
       const lov = await lovContentFrame(page);
@@ -522,7 +522,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     const eq = await sub(page, F_EQ_LIST);
     await clickButton(eq, '생성');
     await settle(page, 1500);
-    const { lovContentFrame, pickInLov } = await import('./support/dream');
+    const { lovContentFrame, pickInLov } = await import('../support/dream');
     await pickInLov(page, await lovContentFrame(page), EQUIP_1, '설비번호');
     const ed = await detailFrame(page, D.eq);
     await put(ed.locator('[id="workPmListEquipDetailDTO.initWrkDate"]'), dateAfter(7));

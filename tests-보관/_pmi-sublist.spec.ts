@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { dateAfter } from './support/form';
-import { openPm, rowsOf, fmt, deleteRow, addEquip, addStd, addPoint, addDoc, POINTS } from './support/pmi';
+import { dateAfter } from '../tests/support/form';
+import { openPm, rowsOf, fmt, deleteRow, addEquip, addStd, addPoint, addDoc, POINTS } from '../tests/support/pmi';
 
 // 테스트로 만든 정기점검주기(8001, 8004)의 하위 목록 확인
 // 목록마다: 기본 항목이 없으면 하나 추가 → 추가 항목 하나 더 추가(행 +1 확인) → 그 추가 항목만 삭제(행 -1 확인)

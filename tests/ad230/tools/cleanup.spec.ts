@@ -1,8 +1,8 @@
 import { test, Page } from '@playwright/test';
 import fs from 'fs';
-import { openMenu, waitFrame, clickButton, clickTab, settle, Grid } from './support/dream';
-import { put, popupMessage } from './support/form';
-import { F_COND } from './support/pmi';
+import { openMenu, waitFrame, clickButton, clickTab, settle, Grid } from '../../support/dream';
+import { put, popupMessage } from '../../support/form';
+import { F_COND } from '../../support/pmi';
 
 // 테스트가 만든 정기점검주기 정리 (사용자 지시 2026-10-20: 삭제할 수 있는 것은 삭제 후 다시 생성)
 // 대상: playwright/.data/pmi-created.json 에 기록된 번호 중 작업명이 [sychoi] 로 시작하는 것만.

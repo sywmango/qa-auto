@@ -1,4 +1,4 @@
-# AD230 테스트 결과를 엑셀(Dev 조치사항 시트)에 옮겨 적습니다.
+# 단위테스트 결과를 회사 UT 양식 엑셀(Dev 조치사항 시트)에 옮겨 적습니다. (메뉴 공통: 테스트 제목이 'AD230_TC_001 …' 처럼 화면ID_TC/EC_번호로 시작하면 됨)
 # 사용: python scripts/write-results.py <원본.xlsx> <새파일.xlsx> <결과json 폴더> [수동결과.json]
 #  - 결과json 폴더: playwright 의 --reporter=json 결과 파일들 (나중 파일이 앞 파일을 덮어씀)
 #  - 수동결과.json: { "AD230_EC_001": {"result": "미수행", "text": "사유", "data": ""}, ... }
@@ -17,6 +17,8 @@ if os.path.exists(dst):
     except OSError:
         sys.exit(f'{dst} 가 열려 있습니다. 엑셀을 닫고 다시 실행하세요.')
 
+ID_RE = r'([A-Z]{2}\d{3}_(?:TC|EC)_\d+)'
+is_id = lambda v: bool(v) and re.fullmatch(ID_RE, str(v)) is not None
 results = {}
 merged = {}
 
@@ -32,7 +34,7 @@ for f in sorted(glob.glob(os.path.join(res_dir, '*.json')), key=os.path.getmtime
     rep = json.load(open(f, encoding='utf8'))
     for top in rep.get('suites', []):
         for spec in walk(top):
-            m = re.match(r'(AD230_(?:TC|EC)_\d+)', spec['title'])
+            m = re.match(ID_RE, spec['title'])
             if not m:
                 continue
             for t in spec.get('tests', []):
@@ -71,7 +73,7 @@ today = datetime.date.today().isoformat()
 done = 0
 for row in range(6, ws.max_row + 1):
     tid = ws.cell(row, 4).value
-    if not tid or not str(tid).startswith('AD230_') or tid not in results:
+    if not is_id(tid) or tid not in results:
         continue
     r = results[tid]
     ws.cell(row, 8).value = '최신영'
@@ -103,13 +105,13 @@ tc = wb['테스트 케이스']
 cases = []
 for row in range(6, tc.max_row + 1):
     tid = tc.cell(row, 4).value
-    if not tid or not str(tid).startswith('AD230_'):
+    if not is_id(tid):
         continue
     cases.append({'id': tid, 'screen': tc.cell(row, 2).value or '', 'func': tc.cell(row, 3).value or '',
                   'case': tc.cell(row, 5).value or '', 'step': tc.cell(row, 6).value or '', 'expected': tc.cell(row, 7).value or '',
                   **results.get(tid, {'result': '미실행', 'text': ''})})
 with open(os.path.splitext(dst)[0] + '_결과.json', 'w', encoding='utf8') as f:
     json.dump(cases, f, ensure_ascii=False, indent=1)
-missing = [ws.cell(r, 4).value for r in range(6, ws.max_row + 1) if str(ws.cell(r, 4).value or '').startswith('AD230_') and ws.cell(r, 4).value not in results]
+missing = [ws.cell(r, 4).value for r in range(6, ws.max_row + 1) if is_id(ws.cell(r, 4).value) and ws.cell(r, 4).value not in results]
 print(f'{done}건 기록 → {dst}')
 print('결과 없는 케이스:', ', '.join(missing) or '없음')

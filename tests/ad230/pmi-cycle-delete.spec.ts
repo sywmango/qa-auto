@@ -1,7 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
-import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid } from './support/dream';
-import { fillAllFields, saveForm, popupMessage, put, dateAfter } from './support/form';
-import { F_COND, F_DETAIL, openPm, addEquip, uniqueName, pmValues, remember } from './support/pmi';
+import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid } from '../support/dream';
+import { fillAllFields, saveForm, popupMessage, put, dateAfter } from '../support/form';
+import { F_COND, F_DETAIL, openPm, addEquip, uniqueName, pmValues, remember } from '../support/pmi';
 
 // 정기점검주기 (AD230) 삭제 케이스 — 작업이 발행되기 전 상태의 주기만 삭제 (사용자 허락 2026-10-20)
 // 삭제 대상은 이 테스트가 방금 만든 주기뿐. 다른 데이터는 삭제하지 않음.
@@ -100,7 +100,7 @@ test.describe('AD230 정기점검주기 (삭제)', () => {
     expect(after.length, '삭제 후 목록에서 사라져야 함').toBe(0);
   });
 
-  test('AD230_EC_016 일정이 생성된 정기점검주기를 삭제한다. (작업 발행 전)', async ({ page }) => {
+  test('AD230_EC_016 일정이 생성된 정기점검주기를 삭제한다. (삭제 불가가 사양)', async ({ page }) => {
     const reuse = !!st.EC_016;
     const pmNo = st.EC_016 ?? await createPm(page, '일정 삭제 확인');
     keep('EC_016', pmNo);
@@ -122,7 +122,10 @@ test.describe('AD230 정기점검주기 (삭제)', () => {
     const afterPlans = await plans(page, pmNo);
     note(`예방작업번호 ${pmNo}: 설비 ${EQUIP_1}, 최초작업예정일 ${dateAfter(30)}, 일정생성 → 계획 ${before.length}건 (상태 ${[...new Set(before.map((p) => p['일정상태']))].join(', ')})\n체크 후 삭제 → 확인창 ${del.confirm ? '뜸 → OK' : '없음'}, 안내 "${del.msg || '없음'}"\n삭제 후 정기점검주기 목록 ${afterList.length}행, 정기점검계획 ${afterPlans.length}건`);
     expect(before.length, '삭제 전 계획이 있어야 함').toBeGreaterThan(0);
-    expect(afterList.length, '주기가 삭제되어야 함').toBe(0);
-    expect.soft(afterPlans.length, '발행 전 계획도 함께 정리되어야 함').toBe(0);
+    // 사양 (2026-10-20 확인): 일정이 생성된 주기는 삭제할 수 없음 → 주기·계획이 그대로 남아야 함
+    expect(afterList.length, '일정 있는 주기는 삭제되지 않아야 함 (사양)').toBe(1);
+    expect(afterPlans.length, '계획도 그대로').toBe(before.length);
+    // 개선 대상: 안내 문구가 실제 이유와 다름 ("선택된 데이터가 없습니다.")
+    expect.soft(del.msg, '삭제 불가 이유를 알려 주는 안내').not.toMatch(/선택된 데이터가 없습니다/);
   });
 });

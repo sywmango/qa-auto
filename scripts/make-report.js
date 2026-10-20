@@ -1,4 +1,4 @@
-// AD230 테스트 결과 보고서(PDF) 만들기
+// 단위테스트 결과 보고서(PDF) 만들기 (메뉴 공통: 제목·메뉴 경로는 추가정보.json 의 title·menuPath)
 // 사용: node scripts/make-report.js <결과.json> <추가정보.json> <출력.pdf>
 //  - 결과.json: write-results.py 가 만든 <새파일>_결과.json
 //  - 추가정보.json: { env: {...}, data: [{no, name, note}], extra: [{title, text}], shots: [{title, path}] }
@@ -43,8 +43,8 @@ th { background: #eef2f8; } tr { page-break-inside: avoid; }
 td.t { font-size: 9px; word-break: break-all; }
 table.fix { table-layout: fixed; }
 </style></head><body>
-<h1>정기점검주기(AD230) 단위테스트 결과 보고서</h1>
-<div class="sub">Dream 4.1 (QA) · 작업관리 > 정기점검작업 > 정기점검주기 · 작성 ${esc(info.date || new Date().toISOString().slice(0, 10))} · 테스트 ${esc(info.tester || '최신영')}</div>
+<h1>${esc(info.title || '정기점검주기(AD230)')} 단위테스트 결과 보고서</h1>
+<div class="sub">Dream 4.1 (QA) · ${esc(info.menuPath || '작업관리 > 정기점검작업 > 정기점검주기')} · 작성 ${esc(info.date || new Date().toISOString().slice(0, 10))} · 테스트 ${esc(info.tester || '최신영')}</div>
 
 <h2>1. 요약</h2>
 <div class="kpi"><div>전체<b>${sum.total}</b></div><div>정상<b>${sum.ok}</b></div><div>오류<b>${sum.ng}</b></div><div>개선<b>${sum.check}</b></div><div>미수행·미실행<b>${sum.skip + sum.none}</b></div></div>
@@ -78,5 +78,6 @@ ${skipped.length ? `<table><tr><th style="width:14%">ID</th><th>케이스</th><t
   await page.goto('file:///' + path.resolve(htmlFile).replace(/\\/g, '/'));
   await page.pdf({ path: outFile, format: 'A4', printBackground: true, displayHeaderFooter: true, headerTemplate: '<span></span>', footerTemplate: '<div style="font-size:8px;width:100%;text-align:center;color:#777"><span class="pageNumber"></span> / <span class="totalPages"></span></div>', margin: { top: '14mm', bottom: '16mm', left: '12mm', right: '12mm' } });
   await browser.close();
+  fs.unlinkSync(htmlFile); // PDF 만들고 나면 중간 HTML 은 지움
   console.log('보고서 →', outFile);
 })();

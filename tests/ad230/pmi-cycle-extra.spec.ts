@@ -1,9 +1,9 @@
 import { test, expect, Page, Frame } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid, lovContentFrame } from './support/dream';
-import { fillAllFields, saveForm, popupMessage, put, dateAfter, closeLov } from './support/form';
-import { F_COND, F_DETAIL, L, D, openPm, detailFrame, rowsOf, addEquip, uniqueName, pmValues, remember, readPlans } from './support/pmi';
+import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid, lovContentFrame } from '../support/dream';
+import { fillAllFields, saveForm, popupMessage, put, dateAfter, closeLov } from '../support/form';
+import { F_COND, F_DETAIL, L, D, openPm, detailFrame, rowsOf, addEquip, uniqueName, pmValues, remember, readPlans } from '../support/pmi';
 
 // 정기점검주기 (AD230) — 1차에서 미수행이었던 케이스 (2026-10-19 사용자 요청으로 추가 실행)
 // TC_015 상세 표시 형식, TC_036 설비 탭 Excel, EC_010 설비 2대 일정, EC_006 주기구분별 간격, EC_007 월말 시작일, EC_012 몇일전 경계값
@@ -47,24 +47,44 @@ async function setPeriod(page: Page, d: Frame, unit: string) {
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const parse = (s: string) => { const [y, m, d] = s.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };
 /** 시작일에서 k번째 예정일 (월·년은 말일 넘치면 그 달 말일) */
-function nominal(start: string, unit: string, n: number, k: number) {
+/**
+ * 기대 일정 목록 (사양 확인 2026-10-20 반영)
+ * - 월·년 주기: 시작일 날짜를 따르되, 그 달에 그 날짜가 없으면 말일. 한 번 말일로 맞춰지면 그 뒤로는 말일 기준.
+ * - 토·일이면 앞 근무일(금)로 당김. 당긴 날에 이미 일정이 있으면 그 회차는 삭제.
+ * - 공휴일 당김은 달력마다 달라 비교할 때 0~3일 이른 것을 허용.
+ */
+function expectedDates(start: string, unit: string, n: number, count: number) {
   const s = parse(start);
-  if (unit === '일') return ymd(new Date(s.getFullYear(), s.getMonth(), s.getDate() + n * k));
-  if (unit === '주') return ymd(new Date(s.getFullYear(), s.getMonth(), s.getDate() + 7 * n * k));
-  const months = unit === '월' ? n * k : 12 * n * k;
-  const last = new Date(s.getFullYear(), s.getMonth() + months + 1, 0).getDate();
-  return ymd(new Date(s.getFullYear(), s.getMonth() + months, Math.min(s.getDate(), last)));
+  const out: string[] = [];
+  let monthEnd = new Date(s.getFullYear(), s.getMonth() + 1, 0).getDate() === s.getDate();
+  for (let k = 0; out.length < count && k < count * 3; k++) {
+    let d: Date;
+    if (unit === '일') d = new Date(s.getFullYear(), s.getMonth(), s.getDate() + n * k);
+    else if (unit === '주') d = new Date(s.getFullYear(), s.getMonth(), s.getDate() + 7 * n * k);
+    else {
+      const months = unit === '월' ? n * k : 12 * n * k;
+      const last = new Date(s.getFullYear(), s.getMonth() + months + 1, 0).getDate();
+      if (s.getDate() > last) monthEnd = true;
+      d = new Date(s.getFullYear(), s.getMonth() + months, monthEnd ? last : Math.min(s.getDate(), last));
+    }
+    const dow = d.getDay();
+    if (dow === 6) d.setDate(d.getDate() - 1);
+    if (dow === 0) d.setDate(d.getDate() - 2);
+    const v = ymd(d);
+    if (out.includes(v)) continue; // 당긴 날에 이미 일정이 있으면 그 회차 삭제
+    out.push(v);
+  }
+  return out;
 }
-const daysBetween = (a: string, b: string) => Math.round((parse(a).getTime() - parse(b).getTime()) / 86400_000);
-const planDate = (p: Record<string, string>) => p['초기계획'] || p['작업일자'] || p['점검일자'] || '';
 
-/** 계획 날짜가 시작일 기준 주기와 맞는지 (휴일이면 앞 근무일로 당겨지므로 0~3일 이른 것은 허용) */
+/** 실제 일정이 기대 일정과 맞는지 (공휴일 당김 0~3일 허용) */
 function checkIntervals(dates: string[], start: string, unit: string, n: number) {
+  const exp = expectedDates(start, unit, n, dates.length);
   const bad: string[] = [];
   dates.forEach((dt, k) => {
-    const nom = nominal(start, unit, n, k);
-    const early = daysBetween(nom, dt);
-    if (early < 0 || early > 3) bad.push(`${k + 1}번째 ${dt} (기대 ${nom})`);
+    const e = exp[k];
+    const early = e ? daysBetween(e, dt) : -1;
+    if (early < 0 || early > 3) bad.push(`${k + 1}번째 ${dt} (기대 ${e ?? '-'})`);
   });
   return bad;
 }

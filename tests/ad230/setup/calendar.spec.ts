@@ -1,7 +1,7 @@
 import { test, Page, Frame } from '@playwright/test';
 import fs from 'fs';
-import { openMenu, settle, Grid, clickButton, lovContentFrame } from './support/dream';
-import { fillAllFields, listFields, saveForm, chooseInLov, closeLov } from './support/form';
+import { openMenu, settle, Grid, clickButton, lovContentFrame } from '../../support/dream';
+import { fillAllFields, listFields, saveForm, chooseInLov, closeLov } from '../../support/form';
 
 // EC_001~004 준비: 테스트용 가동달력·사용달력 (사용자 허락 2026-10-19). 이름 [sychoi]. 삭제하지 않음.
 const CAL = 'playwright/.data/calendars.json';
@@ -80,8 +80,8 @@ test('가동달력 만들기 + 요일별 기본값', async ({ page }) => {
  * kind: 가동달력(1교대 480분) / 사용달력(사용횟수 8)
  */
 async function fillDaily(page: Page, o: { menu: string[]; dto: string; nameLabel: string; calName: string; values: Record<string, string>; from: number; to: number }) {
-  const { put, popupMessage } = await import('./support/form');
-  const { openLov } = await import('./support/dream');
+  const { put, popupMessage } = await import('../../support/form');
+  const { openLov } = await import('../../support/dream');
   const days: string[] = [];
   for (let i = o.from; i <= o.to; i++) {
     const d = new Date(Date.now() + i * 86400_000 + 9 * 3600_000); // KST 기준 날짜

@@ -1,7 +1,7 @@
 import { test, Page, Frame } from '@playwright/test';
-import { openMenu, settle, clickButton, waitFrame, Grid, lovContentFrame, escapeRe } from './support/dream';
-import { fillAllFields, listFields, saveForm, popupMessage } from './support/form';
-import { openPm, L } from './support/pmi';
+import { openMenu, settle, clickButton, waitFrame, Grid, lovContentFrame, escapeRe } from '../../support/dream';
+import { fillAllFields, listFields, saveForm, popupMessage } from '../../support/form';
+import { openPm, L } from '../../support/pmi';
 
 // 설비종류설정 > 믹서 에 점검항목 추가 (사용자 허락 2026-10-19). 이름 [sychoi]. 삭제하지 않음.
 const note = (t: string) => test.info().annotations.push({ type: '실제결과', description: t });

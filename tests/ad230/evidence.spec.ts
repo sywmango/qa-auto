@@ -1,7 +1,7 @@
 import { test, Page, Frame } from '@playwright/test';
-import { openMenu, waitFrame, clickButton, clickTab, settle, Grid, lovContentFrame, pickInLov } from './support/dream';
-import { put, dateAfter, saveForm, popupMessage, chooseInLov } from './support/form';
-import { F_COND, L, D, openPm, detailFrame, rowsOf, deleteRowWhere } from './support/pmi';
+import { openMenu, waitFrame, clickButton, clickTab, settle, Grid, lovContentFrame, pickInLov } from '../support/dream';
+import { put, dateAfter, saveForm, popupMessage, chooseInLov } from '../support/form';
+import { F_COND, L, D, openPm, detailFrame, rowsOf, deleteRowWhere } from '../support/pmi';
 
 // 보고서용 오류 증적 캡처 (테스트 데이터만 사용, 바꾼 값은 되돌림)
 // 주기 번호는 각 테스트가 남긴 상태 파일에서 읽음

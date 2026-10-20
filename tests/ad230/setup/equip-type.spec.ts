@@ -1,6 +1,6 @@
 import { test, expect, Page, Frame } from '@playwright/test';
-import { openMenu, settle, Grid, waitFrame } from './support/dream';
-import { listFields, chooseInLov, saveForm } from './support/form';
+import { openMenu, settle, Grid, waitFrame } from '../../support/dream';
+import { listFields, chooseInLov, saveForm } from '../../support/form';
 
 // 설비자산 > 설비: 100302AG13 의 설비종류를 '믹서'로 (TC_039 표준항목선택 확인용, 사용자 허락 2026-10-19)
 const EQ = '100302AG13';

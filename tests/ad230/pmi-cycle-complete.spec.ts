@@ -1,9 +1,9 @@
 import { test, expect, Page, Frame } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid } from './support/dream';
-import { fillAllFields, listFields, saveForm, popupMessage, put, dateAfter, chooseInLov, readFields } from './support/form';
-import { F_COND, F_DETAIL, L, D, openPm, addEquip, detailFrame, uniqueName, PM_VALUES, pmValues, remember } from './support/pmi';
+import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid } from '../support/dream';
+import { fillAllFields, listFields, saveForm, popupMessage, put, dateAfter, chooseInLov, readFields } from '../support/form';
+import { F_COND, F_DETAIL, L, D, openPm, addEquip, detailFrame, uniqueName, PM_VALUES, pmValues, remember } from '../support/pmi';
 
 // 정기점검주기 (AD230) EC_001~005: 일정생성 → (작업발행) → 정기점검실행에서 작업완료(확정) → 이후 일정 재조정 확인
 // 첫 일정을 몇일전 일정생성(7일) 안에 두면 일정생성 때 바로 작업이 발행됨 (8007 에서 확인) → 일정확정 단계 없이 실행에서 완료
@@ -202,7 +202,13 @@ test.describe('AD230 정기점검주기 (작업완료 후 일정 재조정)', ()
       const restBefore = r.before.slice(1).map((p) => p.adj).join(', ');
       const restAfter = r.after.filter((p) => !p.done).map((p) => p.adj).join(', ');
       note(`판정: 완료 후 남은 계획 [${restAfter}] / 완료 전 [${restBefore}] → ${restAfter === restBefore ? '그대로' : '바뀜'} (재조정 ${resched} 기대: ${resched === 'Y' ? '완료일 기준으로 바뀜' : '그대로'})`);
-      if (resched === 'Y') expect(restAfter).not.toBe(restBefore); else expect(restAfter).toBe(restBefore);
+      if (resched === 'Y') {
+        // 규칙 문서 4장: 완료일 기준으로 다시 계산 → 남은 계획이 바뀌어야 하고, 완료한 날짜에 같은 계획이 또 생기면 안 됨
+        const doneDates = r.after.filter((p) => p.done).map((p) => p.adj);
+        const dupOfDone = r.after.filter((p) => !p.done && doneDates.includes(p.adj));
+        expect.soft(dupOfDone.length, '완료한 날짜에 계획이 다시 생기면 안 됨').toBe(0);
+        expect(r.after.filter((p) => !p.done && !doneDates.includes(p.adj)).map((p) => p.adj).join(', '), '완료일 기준으로 다시 계산').not.toBe(restBefore);
+      } else expect(restAfter).toBe(restBefore);
     });
   }
 });

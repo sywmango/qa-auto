@@ -2,7 +2,7 @@ import { test, expect, Page, Frame } from '@playwright/test';
 import {
   openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid,
   openLov, lovTotal, pickInLov, expandTreeNode, expandTreeUntil, visibleTreeNodes, lovContentFrame,
-} from './support/dream';
+} from '../support/dream';
 
 // 작업관리 > 정기점검작업 > 정기점검주기 (AD230) 단위테스트
 // 테스트 제목 앞의 번호는 docs\AD230_UT_정기점검주기_v3.xlsx 의 테스트ID 와 같습니다.

@@ -1,7 +1,7 @@
 import { test, expect, Page, Frame } from '@playwright/test';
 import fs from 'fs';
-import { openMenu, settle, clickButton, waitFrame, Grid, lovContentFrame, escapeRe } from './support/dream';
-import { fillAllFields, listFields, saveForm, popupMessage, chooseInLov, put } from './support/form';
+import { openMenu, settle, clickButton, waitFrame, Grid, lovContentFrame, escapeRe } from '../../support/dream';
+import { fillAllFields, listFields, saveForm, popupMessage, chooseInLov, put } from '../../support/form';
 
 // 표준작업설정: 테스트용 표준작업(믹서)에 하위 목록을 모두 채우고 확정 → 정기점검주기 [표준항목선택] 팝업에 나오게 함
 // 만든 표준작업은 삭제하지 않음. 이름은 [sychoi] 로 시작.
