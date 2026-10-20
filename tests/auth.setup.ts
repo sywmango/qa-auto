@@ -1,6 +1,7 @@
 import { test as setup, expect } from '@playwright/test';
 
-const authFile = 'playwright/.auth/user.json';
+// QA_AUTH 를 주면 그 파일에 저장 (작업마다 로그인을 따로 쓰고 싶을 때)
+const authFile = process.env.QA_AUTH || 'playwright/.auth/user.json';
 
 // 테스트 시작 전에 한 번 로그인하고, 로그인 상태를 파일로 저장합니다.
 // 이후 테스트들은 이 파일을 불러와서 로그인된 상태로 시작합니다.
