@@ -2,7 +2,8 @@
 # 사용: python scripts/write-results.py <원본.xlsx> <새파일.xlsx> <결과json 폴더> [수동결과.json]
 #  - 결과json 폴더: playwright 의 --reporter=json 결과 파일들 (나중 파일이 앞 파일을 덮어씀)
 #  - 수동결과.json: { "AD230_EC_001": {"result": "미수행", "text": "사유", "data": ""}, ... }
-# 적는 칸: H(QA) I(결과 정상/오류/미수행) J(내용) K(날짜) L(첨부) Q(테스트 데이터/증적)
+# 적는 칸: H(QA) I(결과 정상/오류) J(내용) K(날짜) L(첨부파일 = 증적 캡처 파일명)
+# 회사 양식(v1)에 없는 열은 만들지 않음 (v2~v11 에 있던 Q '테스트 데이터 / 증적' 열은 지움)
 import json, os, re, sys, glob, datetime
 import openpyxl
 from openpyxl.styles import Alignment
@@ -85,11 +86,14 @@ for row in range(6, ws.max_row + 1):
     ws.cell(row, 11).value = datetime.datetime.strptime(r.get('date') or today, '%Y-%m-%d')
     ws.cell(row, 11).number_format = 'yyyy-mm-dd'
     ws.cell(row, 12).value = r.get('attach', '')
-    ws.cell(row, 17).value = r.get('data', '')
-    for c in (10, 17):
+    for c in (10,):
         ws.cell(row, c).alignment = Alignment(wrap_text=True, vertical='top')
     done += 1
 
+# 양식에 없던 Q 열(테스트 데이터 / 증적)이 원본에 있으면 지움
+if ws.max_column >= 17 and str(ws.cell(5, 17).value or '').startswith('테스트 데이터'):
+    ws.delete_cols(17)
+    ws.column_dimensions.pop('Q', None)
 # 수식 결과(캐시)가 비어 있으므로 엑셀이 열 때 다시 계산하게 함
 wb.calculation.fullCalcOnLoad = True
 wb.save(dst)
