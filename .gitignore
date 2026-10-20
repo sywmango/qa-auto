@@ -8,3 +8,4 @@ node_modules/
 /playwright/.auth/
 playwright/.auth/
 .env
+playwright/.data/

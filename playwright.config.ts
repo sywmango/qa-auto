@@ -7,6 +7,9 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 export default defineConfig({
   testDir: './tests',
+  // 정기점검주기(AD230) 테스트는 주기를 만들고·완료·삭제하므로 평소에는 빼고, RUN_AD230=1 일 때만 실행
+  // (run-ad230.ps1 이 자동으로 켬)
+  testIgnore: process.env.RUN_AD230 ? [] : ['**/ad230/**'],
 
   // 같은 QA 계정을 쓰므로 테스트끼리 서로 꼬이지 않게 하나씩 순서대로 실행합니다.
   fullyParallel: false,
@@ -20,6 +23,9 @@ export default defineConfig({
 
   use: {
     baseURL: process.env.BASE_URL,
+
+    // 클릭·입력이 덮개 등에 막혀 끝없이 기다리지 않도록 동작 하나당 최대 15초
+    actionTimeout: 15_000,
     viewport: { width: 1600, height: 900 },
 
     // 실패했을 때만 스크린샷, 영상, 트레이스를 남깁니다.
