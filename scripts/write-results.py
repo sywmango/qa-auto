@@ -81,13 +81,17 @@ for row in range(6, ws.max_row + 1):
     ws.cell(row, 9).value = excel_res
     # 정상은 QA내용을 비움 (개선으로 정상 처리한 행은 [개선] 내용을 남김)
     ws.cell(row, 10).value = '' if res == '정상' else prefix + r.get('text', '')
-    ws.cell(row, 11).value = r.get('date') or today
+    # 날짜는 글자가 아니라 날짜 값으로 (테스트 케이스 시트의 MAXIFS·INDEX 수식이 이 칸을 날짜로 비교함)
+    ws.cell(row, 11).value = datetime.datetime.strptime(r.get('date') or today, '%Y-%m-%d')
+    ws.cell(row, 11).number_format = 'yyyy-mm-dd'
     ws.cell(row, 12).value = r.get('attach', '')
     ws.cell(row, 17).value = r.get('data', '')
     for c in (10, 17):
         ws.cell(row, c).alignment = Alignment(wrap_text=True, vertical='top')
     done += 1
 
+# 수식 결과(캐시)가 비어 있으므로 엑셀이 열 때 다시 계산하게 함
+wb.calculation.fullCalcOnLoad = True
 wb.save(dst)
 
 # 보고서용 요약 JSON (결과 + 테스트 케이스 시트의 케이스/기대결과)
