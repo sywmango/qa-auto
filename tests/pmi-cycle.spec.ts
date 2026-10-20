@@ -147,7 +147,12 @@ test.describe('AD230 정기점검주기 (조회)', () => {
       const total = await g.total();
       // 작업명은 띄어쓰기 단위로 검색됨 (모든 단어가 들어 있으면 일치로 봄)
       const words = col === '작업명' ? value.split(/\s+/).filter(Boolean) : [value];
-      const bad = rows.filter((r) => r[col] !== undefined && !words.every((w) => r[col].includes(w)));
+      let bad = rows.filter((r) => r[col] !== undefined && !words.every((w) => r[col].includes(w)));
+      // 설비 조건: 그 설비가 묶인 주기는 묶인 설비마다 한 행씩 나오는 것이 정상 (사용자 확인 2026-10-20)
+      if (col === '설비') {
+        const hit = new Set(rows.filter((r) => r['설비'] === value).map((r) => r['예방작업번호']));
+        bad = bad.filter((r) => !hit.has(r['예방작업번호']));
+      }
       log.push(`${col}="${value}": ${rows.length}행, Total ${total?.loaded}/${total?.all}, 불일치 ${bad.length}행` + (bad.length ? ` (예: ${bad.slice(0, 3).map((b) => b[col]).join(' / ')})` : ''));
       expect.soft(rows.length, `${col} 검색 결과가 있어야 함`).toBeGreaterThan(0);
       expect.soft(bad.length, `${col} 조건과 다른 행이 없어야 함`).toBe(0);
@@ -172,7 +177,9 @@ test.describe('AD230 정기점검주기 (조회)', () => {
     await f2.locator('[id="maPmMstrCommonDTO.pmDesc"]').fill(first['작업명'].split(/\s+/)[0]);
     await search(page, f2);
     const rows2 = await listGrid(f2).rows();
-    const bad2 = rows2.filter((r) => r['설비'] !== first['설비'] || !r['작업명'].includes(first['작업명'].split(/\s+/)[0]));
+    // 설비가 묶인 주기는 묶인 설비마다 한 행씩 나옴 (정상) → 같은 주기에 그 설비 행이 있으면 일치로 봄
+    const hit2 = new Set(rows2.filter((r) => r['설비'] === first['설비']).map((r) => r['예방작업번호']));
+    const bad2 = rows2.filter((r) => !hit2.has(r['예방작업번호']) || !r['작업명'].includes(first['작업명'].split(/\s+/)[0]));
     note(`① 작업명 "점검" + 시행여부 Y: ${rows.length}행, 불일치 ${bad.length}행\n② 설비 "${first['설비']}" + 작업명 "${first['작업명'].split(/\s+/)[0]}": ${rows2.length}행, 불일치 ${bad2.length}행`);
     expect.soft(rows.length).toBeGreaterThan(0);
     expect.soft(bad.length).toBe(0);

@@ -2,7 +2,7 @@ import { test, expect, Page, Frame } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid } from './support/dream';
-import { D, detailFrame, rowsOf, deleteRow, deleteRowWhere, addStd, addPoint, addDoc, fmt, POINTS, uniqueName, PM_VALUES, remember, readPlans } from './support/pmi';
+import { D, detailFrame, rowsOf, deleteRow, deleteRowWhere, addStd, addPoint, addDoc, fmt, POINTS, uniqueName, PM_VALUES, pmValues, remember, readPlans } from './support/pmi';
 import {
   fillAllFields, readFields, diffFields, diffWithRow, saveForm, popupMessage, chooseInLov, closeLov,
   listFields, dateAfter, Entered, TAG, leaveField, put,
@@ -29,7 +29,7 @@ const EQUIP_1 = '100302AG13';
 const EQUIP_2 = '100305AG17';
 
 
-const state: { pmNoN?: string; pmNo?: string; name?: string; entered?: Entered; eq1Date?: string; eq2Date?: string } = {};
+const state: { pmNoEC011?: string; pmNoN?: string; pmNo?: string; name?: string; entered?: Entered; eq1Date?: string; eq2Date?: string } = {};
 
 function note(text: string) {
   test.info().annotations.push({ type: '실제결과', description: text });
@@ -113,7 +113,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     const d = await waitFrame(page, F_DETAIL);
     await settle(page, 1500);
     const name = uniqueName();
-    const entered = await fillAllFields(page, d, { ...PM_VALUES, 'maPmMstrDetailDTO.description': name }, STAMP);
+    const entered = await fillAllFields(page, d, pmValues(name), STAMP);
     const msg = await saveForm(page, d);
     const pmNo = await fieldValue(d, 'maPmMstrDetailDTO.pmNo');
     remember(pmNo);
@@ -136,7 +136,8 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     const { d } = await openPm(page, state.pmNo!);
     const changes: Record<string, string> = {
       // 이전 실행에서 붙은 표시는 떼고 한 번만 붙임
-      'maPmMstrDetailDTO.description': `${state.name!.replace(/( \(점검항목 보완\))+$/, '')} (점검항목 보완)`,
+      // 작업명은 100바이트(UTF-8)를 넘으면 안내 없이 저장되지 않음(EC_013) → 짧은 표시만 붙임
+      'maPmMstrDetailDTO.description': `${state.name!.replace(/( \((점검항목 )?보완\))+$/, '')} (보완)`,
       'maPmMstrDetailDTO.predWoTimeMin': '45',
       'maPmMstrDetailDTO.remark': '임펠러 체결 토크 재확인 항목 추가',
     };
@@ -355,7 +356,8 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
   });
 
   test('AD230_TC_042 첨부문서를 등록하고 삭제한다. (삭제 후 다시 등록)', async ({ page }) => {
-    const base = `${TAG} High Speed Mixer(세종파마텍) 정기점검 기준서`;
+    // 문서 제목은 이 주기의 점검 종류에 맞춤 (예: [sychoi] 메인 베어링 윤활 점검 작업표준서)
+    const base = `${TAG} ${(state.name ?? '').replace(/^\[sychoi\] High Speed Mixer\([^)]*\) /, '').replace(/ \(.*\)$/, '') || '정기점검'} 작업표준서`;
     await openPm(page, state.pmNo!);
     const before = (await rowsOf(page, 'doc', '제목')).length;
     const a = await addDoc(page, base, 'HighSpeedMixer_점검기준서.txt');
@@ -458,7 +460,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     await clickButton(f, '생성');
     const d = await waitFrame(page, F_DETAIL);
     await settle(page, 1500);
-    await fillAllFields(page, d, { ...PM_VALUES, 'maPmMstrDetailDTO.description': uniqueName() }, STAMP);
+    await fillAllFields(page, d, pmValues(uniqueName()), STAMP);
     const log: string[] = [];
     for (const v of ['0', '-1', '1.5', '가']) {
       await put(d.locator('[id="maPmMstrDetailDTO.cycle"]'), v);
@@ -470,7 +472,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     const pm = await fieldValue(d, 'maPmMstrDetailDTO.pmNo');
     const exists = await openPm(page, pm).then(() => true).catch(() => false);
     const savedCycle = exists ? await fieldValue(await waitFrame(page, F_DETAIL), 'maPmMstrDetailDTO.cycle') : '';
-    if (exists) remember(pm);
+    if (exists) { remember(pm); state.pmNoEC011 = pm; }
     log.push(exists ? `예방작업번호 ${pm} 이 저장되어 있음, 저장된 주기="${savedCycle}"` : '저장된 주기 없음');
     note(log.join('\n'));
     expect.soft(exists, '잘못된 주기 값으로는 저장되면 안 됨').toBe(false);
@@ -482,7 +484,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     const d = await waitFrame(page, F_DETAIL);
     await settle(page, 1500);
     const special = `${uniqueName()} <A&B> "정기" '보완'`;
-    await fillAllFields(page, d, { ...PM_VALUES, 'maPmMstrDetailDTO.description': special }, STAMP);
+    await fillAllFields(page, d, { ...pmValues(special) }, STAMP);
     const maxLen = await d.locator('[id="maPmMstrDetailDTO.description"]').getAttribute('maxlength');
     const msg = await saveForm(page, d);
     const pmNo = await fieldValue(d, 'maPmMstrDetailDTO.pmNo');
@@ -511,7 +513,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     await clickButton(f, '생성');
     const d = await waitFrame(page, F_DETAIL);
     await settle(page, 1500);
-    await fillAllFields(page, d, { ...PM_VALUES, 'maPmMstrDetailDTO.description': `${uniqueName()} (미시행)`, 'maPmMstrDetailDTO.isActiveDesc': 'N' }, STAMP);
+    await fillAllFields(page, d, { ...pmValues(`${uniqueName()} (미시행)`), 'maPmMstrDetailDTO.isActiveDesc': 'N' }, STAMP);
     await saveForm(page, d);
     pmNo = await fieldValue(d, 'maPmMstrDetailDTO.pmNo');
     remember(pmNo);
@@ -575,8 +577,10 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
 
   test('AD230_TC_037 표준작업을 추가하고 삭제한다. (삭제 후 다시 추가)', async ({ page }) => {
     await openPm(page, state.pmNo!);
-    const before = (await rowsOf(page, 'std', '표준작업명')).length;
-    const a1 = await addStd(page, [], '');
+    const existing = await rowsOf(page, 'std', '표준작업명');
+    const before = existing.length;
+    // 이미 붙어 있는 표준작업(예: TC_039 의 1683)은 빼고 다른 표준작업을 추가
+    const a1 = await addStd(page, existing.map((r) => r['표준작업번호']), '');
     const mid = (await rowsOf(page, 'std', '표준작업명')).length;
     let afterDel = mid;
     let dmsg = '';
@@ -584,11 +588,12 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
       dmsg = await deleteRow(page, 'std', '표준작업명', '표준작업번호', a1.picked['표준작업번호']);
       afterDel = (await rowsOf(page, 'std', '표준작업명')).length;
     }
-    const a2 = await addStd(page, [], '');
+    // 지운 뒤 목록이 비었으면 다시 추가 (비지 않게)
+    const a2 = afterDel === 0 ? await addStd(page, [], '') : { picked: null as null | Record<string, string> };
     const final = (await rowsOf(page, 'std', '표준작업명')).length;
     note(`추가: ${a1.picked ? `${a1.picked['표준작업번호']} ${a1.picked['표준작업명']}` : '-'} ${before} → ${mid}행 ("${a1.msg || '없음'}")
 삭제: ${mid} → ${afterDel}행 ("${dmsg || '없음'}")
-다시 추가: ${a2.picked?.['표준작업명'] ?? '-'} → ${final}행`);
+${a2.picked ? `다시 추가: ${a2.picked['표준작업명']} → ` : '남은 표준작업 '}${final}행`);
     expect.soft(mid).toBe(before + 1);
     expect.soft(afterDel).toBe(mid - 1);
     expect(final).toBeGreaterThan(0);

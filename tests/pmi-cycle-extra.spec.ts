@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid, lovContentFrame } from './support/dream';
 import { fillAllFields, saveForm, popupMessage, put, dateAfter, closeLov } from './support/form';
-import { F_COND, F_DETAIL, L, D, openPm, detailFrame, rowsOf, addEquip, uniqueName, PM_VALUES, remember, readPlans } from './support/pmi';
+import { F_COND, F_DETAIL, L, D, openPm, detailFrame, rowsOf, addEquip, uniqueName, pmValues, remember, readPlans } from './support/pmi';
 
 // 정기점검주기 (AD230) — 1차에서 미수행이었던 케이스 (2026-10-19 사용자 요청으로 추가 실행)
 // TC_015 상세 표시 형식, TC_036 설비 탭 Excel, EC_010 설비 2대 일정, EC_006 주기구분별 간격, EC_007 월말 시작일, EC_012 몇일전 경계값
@@ -12,6 +12,8 @@ import { F_COND, F_DETAIL, L, D, openPm, detailFrame, rowsOf, addEquip, uniqueNa
 const EQUIP_1 = '100302AG13';
 const EQUIP_2 = '100305AG17';
 const STATE = path.join('playwright', '.data', 'pmi-extra-state.json');
+// TC_015·TC_036·EC_010 은 생성·수정 묶음이 만든 주 주기(pmi-state.json 의 pmNo)에서 확인
+const MAIN: string = fs.existsSync(path.join('playwright', '.data', 'pmi-state.json')) ? JSON.parse(fs.readFileSync(path.join('playwright', '.data', 'pmi-state.json'), 'utf8')).pmNo : '8007';
 const state: { pmNo?: string } = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : {};
 const saveState = () => fs.writeFileSync(STATE, JSON.stringify(state));
 
@@ -81,7 +83,7 @@ test.describe('AD230 정기점검주기 (추가 실행)', () => {
   test.afterEach(saveState);
 
   test('AD230_TC_015 (상세) 데이터 표시 형식을 확인한다.', async ({ page }) => {
-    const d = await openPm(page, '8007');
+    const d = await openPm(page, MAIN);
     const nums = ['cycle', 'woResBef', 'predWoTimeMin'];
     const align: string[] = [];
     for (const id of nums) {
@@ -99,7 +101,7 @@ test.describe('AD230 정기점검주기 (추가 실행)', () => {
   });
 
   test('AD230_TC_036 설비 목록을 Excel로 다운로드한다.', async ({ page }) => {
-    await openPm(page, '8007');
+    await openPm(page, MAIN);
     const eq = await waitFrame(page, L.eq);
     const rows = await new Grid(eq, '최초작업예정일').rows();
     const winP = page.context().waitForEvent('page', { timeout: 15_000 });
@@ -116,23 +118,23 @@ test.describe('AD230 정기점검주기 (추가 실행)', () => {
   });
 
   test('AD230_EC_010 설비가 여러 대인 주기의 일정을 생성한다.', async ({ page }) => {
-    // 8007: 설비 1대(100302AG13, 최초 2026-10-26) → 두 번째 설비를 다른 최초작업예정일로 추가 후 일정생성
-    await openPm(page, '8007');
+    // 주 주기: 설비 1대(100302AG13, 최초 2026-10-26) → 두 번째 설비를 다른 최초작업예정일로 추가 후 일정생성
+    await openPm(page, MAIN);
     let rows = await rowsOf(page, 'eq', '최초작업예정일');
     const date2 = dateAfter(10);
     if (!rows.some((r) => r['설비번호'] === EQUIP_2)) await addEquip(page, EQUIP_2, date2, '동일 라인 2호기 추가 점검 대상');
     rows = await rowsOf(page, 'eq', '최초작업예정일');
     const first: Record<string, string> = Object.fromEntries(rows.map((r) => [r['설비번호'], r['최초작업예정일']]));
-    const d = await openPm(page, '8007');
+    const d = await openPm(page, MAIN);
     const cycle = await fieldValue(d, 'maPmMstrDetailDTO.cycle');
     const msg = await generate(page, d);
-    const by = await equipDates(page, '8007');
+    const by = await equipDates(page, MAIN);
     const lines = Object.entries(first).map(([eqNo, f]) => {
       const ds = by[eqNo] ?? [];
       const bad = checkIntervals(ds, f, '월', Number(cycle));
       return `${eqNo}: 최초작업예정일 ${f}, 계획 ${ds.length}건 [${ds.slice(0, 4).join(', ')}${ds.length > 4 ? ' …' : ''}] ${bad.length ? `간격 불일치 ${bad.join(', ')}` : '간격 일치'}`;
     });
-    note(`8007 (${cycle} 월 주기) 일정생성 안내 "${msg || '없음'}"\n${lines.join('\n')}`);
+    note(`${MAIN} (${cycle} 월 주기) 일정생성 안내 "${msg || '없음'}"\n${lines.join('\n')}`);
     for (const [eqNo, f] of Object.entries(first)) {
       expect.soft(by[eqNo]?.length ?? 0, `${eqNo} 계획`).toBeGreaterThan(0);
       if (by[eqNo]?.length) expect.soft(daysBetween(f, by[eqNo][0]), `${eqNo} 첫 계획 = 최초작업예정일`).toBeLessThanOrEqual(3);
@@ -151,7 +153,7 @@ test.describe('AD230 정기점검주기 (추가 실행)', () => {
         await clickButton(f, '생성');
         const d = await waitFrame(page, F_DETAIL);
         await settle(page, 1500);
-        await fillAllFields(page, d, { ...PM_VALUES, 'maPmMstrDetailDTO.description': `${uniqueName()} (주기구분 확인)`, 'maPmMstrDetailDTO.cycle': '2' });
+        await fillAllFields(page, d, { ...pmValues(`${uniqueName()} (주기구분 확인)`), 'maPmMstrDetailDTO.cycle': '2' });
         await saveForm(page, d);
         const pmNo = await fieldValue(d, 'maPmMstrDetailDTO.pmNo');
         remember(pmNo);

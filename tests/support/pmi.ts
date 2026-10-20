@@ -180,13 +180,27 @@ export function remember(pmNo: string) {
   fs.writeFileSync(CREATED, JSON.stringify(list));
 }
 
-/** 실행마다 겹치지 않는 현실적인 작업명 ([sychoi] + 설비 + 점검 종류) */
-export function uniqueName(): string {
+/** 정기점검 종류: 작업명 뒤에 붙는 이름, 비고(점검 내용), 예상작업시간(분) — 붙이는 설비(High Speed Mixer)에 맞는 실제 점검 */
+export const PM_KINDS: { kind: string; remark: string; minutes: string }[] = [
+  { kind: '임펠러·초퍼 체결 상태 점검', remark: '임펠러·초퍼 체결볼트 풀림, 블레이드 손상 여부 확인', minutes: '40' },
+  { kind: '메인 베어링 윤활 점검', remark: '메인 베어링 그리스 보충, 운전 중 온도·이상음 확인', minutes: '30' },
+  { kind: '구동 V벨트 장력 점검', remark: 'V벨트 장력·마모 상태, 풀리 정렬 확인', minutes: '30' },
+  { kind: '배출밸브 씰 누유 점검', remark: '배출밸브 O-ring·가스켓 상태, 하부 누유 흔적 확인', minutes: '25' },
+  { kind: '주전동기 절연저항 측정', remark: '메가테스터로 주전동기 절연저항 측정 (1MΩ 이상 정상)', minutes: '45' },
+  { kind: '안전 인터록 작동 점검', remark: '뚜껑 개방 시 정지 인터록, 비상정지 버튼 작동 확인', minutes: '20' },
+  { kind: '진동·소음 측정', remark: '운전 중 베어링 하우징 진동(mm/s)과 이상 소음 측정', minutes: '30' },
+  { kind: '쟈켓 냉각수 라인 점검', remark: '냉각수 입·출구 온도 차, 호스·피팅 누수 확인', minutes: '25' },
+  { kind: '제어반 단자 조임 점검', remark: '제어반 단자 풀림·발열 흔적, 접지선 체결 확인', minutes: '35' },
+  { kind: '분해 세척 정밀점검', remark: '임펠러 분해 세척, 씰·가스켓 교체 필요 여부 판단', minutes: '120' },
+  { kind: '스크래퍼 블레이드 마모 점검', remark: '스크래퍼 블레이드 마모량 측정, 보울 내벽 긁힘 확인', minutes: '30' },
+  { kind: '공압 실린더 작동 점검', remark: '뚜껑 승강 실린더 작동 속도, 공압 누설 확인', minutes: '25' },
+];
+
+/** 실행마다 겹치지 않는 작업명: [sychoi] + 설비 + 점검 종류 (설비는 실제로 붙이는 설비) */
+export function uniqueName(equip = 'High Speed Mixer(세종파마텍)'): string {
   const used: string[] = fs.existsSync(NAMES) ? JSON.parse(fs.readFileSync(NAMES, 'utf8')) : [];
-  const equips = ['High Speed Mixer(세종파마텍)', 'High Speed Mixer(금성산기)', 'Double Cone Mixer(일성기공)', 'Drum Mixer(일성기공)', '유동층과립건조기', '타정기(Kikusui 18)', '코팅기 PKC-60', '캡슐충전기(세종)'];
-  const kinds = ['월간 정기점검', '분기 정밀점검', '베어링 윤활 점검', '진동 측정 점검', '전기 절연 점검', '안전장치 작동 점검', '씰·패킹 누유 점검', '구동벨트 장력 점검'];
-  for (const k of kinds) for (const e of equips) {
-    const name = `${TAG} ${e} ${k}`;
+  for (const k of PM_KINDS) {
+    const name = `${TAG} ${equip} ${k.kind}`;
     if (!used.includes(name)) {
       used.push(name);
       fs.mkdirSync(path.dirname(NAMES), { recursive: true });
@@ -194,7 +208,17 @@ export function uniqueName(): string {
       return name;
     }
   }
-  return `${TAG} 정기점검 ${STAMP}`;
+  return `${TAG} ${equip} 정기점검 ${STAMP}`;
+}
+
+/** 작업명에 맞는 비고·예상작업시간을 넣은 PM 기본값 */
+export function pmValues(name: string): Record<string, string | null> {
+  const k = PM_KINDS.find((x) => name.includes(x.kind));
+  return {
+    ...PM_VALUES,
+    'maPmMstrDetailDTO.description': name,
+    ...(k ? { 'maPmMstrDetailDTO.remark': k.remark, 'maPmMstrDetailDTO.predWoTimeMin': k.minutes } : {}),
+  };
 }
 
 // PM 상세 폼에서 정해 두는 값 (나머지 칸은 fillAllFields 가 채움)

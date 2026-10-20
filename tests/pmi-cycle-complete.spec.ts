@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid } from './support/dream';
 import { fillAllFields, listFields, saveForm, popupMessage, put, dateAfter, chooseInLov, readFields } from './support/form';
-import { F_COND, F_DETAIL, L, D, openPm, addEquip, detailFrame, uniqueName, PM_VALUES, remember } from './support/pmi';
+import { F_COND, F_DETAIL, L, D, openPm, addEquip, detailFrame, uniqueName, PM_VALUES, pmValues, remember } from './support/pmi';
 
 // 정기점검주기 (AD230) EC_001~005: 일정생성 → (작업발행) → 정기점검실행에서 작업완료(확정) → 이후 일정 재조정 확인
 // 첫 일정을 몇일전 일정생성(7일) 안에 두면 일정생성 때 바로 작업이 발행됨 (8007 에서 확인) → 일정확정 단계 없이 실행에서 완료
@@ -26,16 +26,18 @@ async function createPm(page: Page, key: string, sched: string, resched: string,
   const d = await waitFrame(page, F_DETAIL);
   await settle(page, 1500);
   // UBM/RBM 은 일정생성방법을 먼저 고르면 칸이 바뀜: 주기 대신 사용량(시간), 몇시간(사용량)전, 사용/가동달력
-  const base: Record<string, string | null> = sched === 'TBM' ? { ...PM_VALUES } : {
+  const name = `${uniqueName()} (${sched} 재조정 ${resched})`;
+  const pv = pmValues(name);
+  const base: Record<string, string | null> = sched === 'TBM' ? pv : {
     'maPmMstrDetailDTO.isActiveDesc': 'Y', 'maPmMstrDetailDTO.usage': '40', 'maPmMstrDetailDTO.woResBef': '80', // 첫 작업만 발행되도록 (200 이면 미래 계획까지 모두 발행되어 재조정 확인이 어려움)
-    'maPmMstrDetailDTO.predWoTimeMin': '40', 'maPmMstrDetailDTO.remark': PM_VALUES['maPmMstrDetailDTO.remark'] as string,
+    'maPmMstrDetailDTO.predWoTimeMin': pv['maPmMstrDetailDTO.predWoTimeMin'], 'maPmMstrDetailDTO.remark': pv['maPmMstrDetailDTO.remark'],
     // 테스트용 달력 (평일 1교대 480분 = 8시간/일)
     'maPmMstrDetailDTO.lnWrkListDesc': sched === 'RBM' ? '[sychoi] Mixer 가동달력' : '[sychoi] Mixer 사용달력',
   };
   if (sched !== 'TBM') { await chooseInLov(page, d, 'maPmMstrDetailDTO.scheduleTypeDesc', sched); await settle(page, 1500); }
   await fillAllFields(page, d, {
     ...base,
-    'maPmMstrDetailDTO.description': `${uniqueName()} (${sched} 재조정 ${resched})`,
+    'maPmMstrDetailDTO.description': name,
     'maPmMstrDetailDTO.scheduleTypeDesc': sched,
     'maPmMstrDetailDTO.isReschedDesc': resched,
   });

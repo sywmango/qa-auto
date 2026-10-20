@@ -1,7 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid } from './support/dream';
 import { fillAllFields, saveForm, popupMessage, put, dateAfter } from './support/form';
-import { F_COND, F_DETAIL, openPm, addEquip, uniqueName, PM_VALUES, remember } from './support/pmi';
+import { F_COND, F_DETAIL, openPm, addEquip, uniqueName, pmValues, remember } from './support/pmi';
 
 // 정기점검주기 (AD230) 삭제 케이스 — 작업이 발행되기 전 상태의 주기만 삭제 (사용자 허락 2026-10-20)
 // 삭제 대상은 이 테스트가 방금 만든 주기뿐. 다른 데이터는 삭제하지 않음.
@@ -20,10 +20,11 @@ async function createPm(page: Page, label: string) {
   await clickButton(await waitFrame(page, F_COND), '생성');
   const d = await waitFrame(page, F_DETAIL);
   await settle(page, 1500);
-  await fillAllFields(page, d, { ...PM_VALUES, 'maPmMstrDetailDTO.description': `${uniqueName()} (${label})` });
+  await fillAllFields(page, d, pmValues(`${uniqueName()} (${label})`));
   await saveForm(page, d);
   const pmNo = await fieldValue(d, 'maPmMstrDetailDTO.pmNo');
   remember(pmNo);
+  await settle(page, 3000); // 저장 직후 바로 검색하면 목록에 아직 안 나오는 경우가 있음
   return pmNo;
 }
 
@@ -101,7 +102,7 @@ test.describe('AD230 정기점검주기 (삭제)', () => {
 
   test('AD230_EC_016 일정이 생성된 정기점검주기를 삭제한다. (작업 발행 전)', async ({ page }) => {
     const reuse = !!st.EC_016;
-    const pmNo = st.EC_016 ?? await createPm(page, '일정 있는 주기 삭제 확인용');
+    const pmNo = st.EC_016 ?? await createPm(page, '일정 삭제 확인');
     keep('EC_016', pmNo);
     if (!reuse) {
     await openPm(page, pmNo);

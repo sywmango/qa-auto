@@ -4,6 +4,11 @@ import { put, dateAfter, saveForm, popupMessage, chooseInLov } from './support/f
 import { F_COND, L, D, openPm, detailFrame, rowsOf, deleteRowWhere } from './support/pmi';
 
 // 보고서용 오류 증적 캡처 (테스트 데이터만 사용, 바꾼 값은 되돌림)
+// 주기 번호는 각 테스트가 남긴 상태 파일에서 읽음
+import fs from 'fs';
+const rd = (f: string) => (fs.existsSync(`playwright/.data/${f}`) ? JSON.parse(fs.readFileSync(`playwright/.data/${f}`, 'utf8')) : {});
+const DATA = rd('pmi-state.json'), EXTRA = rd('pmi-extra-state.json'), CMP = rd('pmi-complete-state.json');
+const MAIN = DATA.pmNo as string, EC011 = DATA.pmNoEC011 as string, EC006 = EXTRA.pmNo as string, EC001 = CMP.EC_001 as string, EC003 = CMP.EC_003 as string;
 const EV = 'playwright/.data/evidence';
 const shot = (page: Page, name: string) => page.screenshot({ path: `${EV}/err-${name}.png` });
 
@@ -34,50 +39,50 @@ test.describe('오류 증적', () => {
     await clickTab(page, '목록(조건)');
     const f = await waitFrame(page, F_COND);
     await f.locator('[id="maPmMstrCommonDTO.filterIsActiveDesc"]').fill('');
-    await f.locator('[id="maPmMstrCommonDTO.pmNo"]').fill('8007');
+    await f.locator('[id="maPmMstrCommonDTO.pmNo"]').fill(MAIN);
     await f.locator('a.b_search:visible').first().click();
     await settle(page, 2500);
     await shot(page, 'TC_004');
   });
 
   test('EC_001·EC_003 재조정 Y 완료 후 계획 (8060, 8061)', async ({ page }) => {
-    await planList(page, '8060', '2026-10-01', '2026-12-31');
+    await planList(page, EC001, '2026-10-01', '2026-12-31');
     await shot(page, 'EC_001');
-    await planList(page, '8061', '2026-10-01', '2026-12-31');
+    await planList(page, EC003, '2026-10-01', '2026-12-31');
     await shot(page, 'EC_003');
   });
 
   test('EC_010 2월 이후 말일로 바뀜 (8007)', async ({ page }) => {
-    await planList(page, '8007', '2027-01-01', '2027-09-30');
+    await planList(page, MAIN, '2027-06-01', '2027-09-30');
     await shot(page, 'EC_010');
   });
 
   test('EC_006 2일 주기 일요일 누락 (8017 다시 생성)', async ({ page }) => {
     // 8017 을 2 일 주기로 바꿔 일정생성 → 캡처 → 원래 값(1 주 주기)으로 되돌림
-    let d = await openPm(page, '8017');
+    let d = await openPm(page, EC006);
     const before = { cycle: await d.locator('[id="maPmMstrDetailDTO.cycle"]').inputValue(), period: await d.locator('[id="maPmMstrDetailDTO.periodTypeDesc"]').inputValue() };
     await chooseInLov(page, d, 'maPmMstrDetailDTO.periodTypeDesc', '일 주기');
     d = await waitFrame(page, /workPmListRInsDetail_workPmListInsList$/);
     await put(d.locator('[id="maPmMstrDetailDTO.cycle"]'), '2');
     await saveForm(page, d);
     // 설비 최초작업예정일 2026-11-16 (월)
-    await openPm(page, '8017');
+    await openPm(page, EC006);
     await new Grid(await waitFrame(page, L.eq), '최초작업예정일').clickCell('설비번호', '100302AG13');
     await settle(page, 1500);
     const ed = await detailFrame(page, D.eq);
     await put(ed.locator('[id="workPmListEquipDetailDTO.initWrkDate"]'), '2026-11-16');
     await saveForm(page, ed);
-    d = await openPm(page, '8017');
+    d = await openPm(page, EC006);
     await clickButton(d, '일정생성');
     await settle(page, 800);
     const ok = page.getByText('OK', { exact: true }).filter({ visible: true }).first();
     if (await ok.isVisible().catch(() => false)) await ok.click();
     await settle(page, 3000);
     await popupMessage(page);
-    await planList(page, '8017', '2026-11-14', '2026-12-10');
+    await planList(page, EC006, '2026-11-14', '2026-12-10');
     await shot(page, 'EC_006');
     // 되돌림
-    d = await openPm(page, '8017');
+    d = await openPm(page, EC006);
     await chooseInLov(page, d, 'maPmMstrDetailDTO.periodTypeDesc', before.period);
     d = await waitFrame(page, /workPmListRInsDetail_workPmListInsList$/);
     await put(d.locator('[id="maPmMstrDetailDTO.cycle"]'), before.cycle);
@@ -85,11 +90,11 @@ test.describe('오류 증적', () => {
   });
 
   test('EC_011 주기 0 저장됨 (8013)', async ({ page }) => {
-    let d = await openPm(page, '8013');
+    let d = await openPm(page, EC011);
     const before = await d.locator('[id="maPmMstrDetailDTO.cycle"]').inputValue();
     await put(d.locator('[id="maPmMstrDetailDTO.cycle"]'), '0');
     await saveForm(page, d);
-    d = await openPm(page, '8013');
+    d = await openPm(page, EC011);
     await scrollTo(d, '주기');
     await shot(page, 'EC_011');
     await put(d.locator('[id="maPmMstrDetailDTO.cycle"]'), before || '1');
@@ -97,7 +102,7 @@ test.describe('오류 증적', () => {
   });
 
   test('EC_014 같은 설비 중복 추가 (8007)', async ({ page }) => {
-    await openPm(page, '8007');
+    await openPm(page, MAIN);
     await clickButton(await waitFrame(page, L.eq), '생성');
     await settle(page, 1500);
     await pickInLov(page, await lovContentFrame(page), '100302AG13', '설비번호');
@@ -106,7 +111,7 @@ test.describe('오류 증적', () => {
     await put(ed.locator('[id="workPmListEquipDetailDTO.initWrkDate"]'), dup);
     await put(ed.locator('[id="workPmListEquipDetailDTO.remark"]'), '중복 추가 확인 (증적 후 삭제)');
     await saveForm(page, ed);
-    await openPm(page, '8007');
+    await openPm(page, MAIN);
     const eq = await waitFrame(page, L.eq);
     await eq.locator('div.gridbox:visible').first().scrollIntoViewIfNeeded();
     await shot(page, 'EC_014');
