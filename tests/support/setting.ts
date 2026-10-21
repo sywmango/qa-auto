@@ -85,7 +85,11 @@ export async function editSettingRow(page: Page, f: Frame, key: string, cells: R
     await page.waitForTimeout(300);
     if (!(await cell.locator('input, textarea').count())) await cell.dblclick();
     await page.waitForTimeout(300);
-    if (await cell.locator('p.open_spop').count()) {
+    if (await cell.locator('select').count()) {
+      // 고르기 칸(정렬 Left/Center/Right, 조회순서 ASC/DESC 등)
+      await cell.locator('select').first().selectOption({ label: value }).catch(() => cell.locator('select').first().selectOption(value));
+      await cell.locator('select').first().press('Enter').catch(() => {});
+    } else if (await cell.locator('p.open_spop').count()) {
       await cell.locator('p.open_spop').click();
       await settle(page, 1500);
       await pickInLov(page, await lovContentFrame(page), value);
