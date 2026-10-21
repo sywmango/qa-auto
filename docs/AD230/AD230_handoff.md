@@ -75,6 +75,7 @@ D:\qa-auto 에서 PowerShell:
 | --- | --- |
 | `run-ad230.ps1` | 단계별 실행 + 엑셀·PDF |
 | `tests/ad230/*.spec.ts` | 조회 / 생성·수정·일정 / 주기구분 / 작업완료 / 삭제 / 캡처 |
+| `tests/common/setting.spec.ts` + `tests/screens/ad230.ts` | Setting 상세 (메뉴 공통 테스트, 화면 정의는 screens/ad230.ts) |
 | `tests/ad230/setup`, `tools` | 준비 데이터, 정리·확인 도구 |
 | `tests/support/pmi.ts` | AD230 화면 부품 (주기 열기, 하위 목록, 일정 조회, 작업명) |
 | `tests/support/form.ts`, `dream.ts` | 공통 부품 (모든 칸 채우기, 저장, Lov, 그리드) — 다른 메뉴에도 사용 |

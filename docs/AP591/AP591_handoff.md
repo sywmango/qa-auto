@@ -50,7 +50,7 @@ D:\qa-auto 에서 PowerShell:
 | 파일 | 내용 |
 | --- | --- |
 | `tests/ap591/exec-view.spec.ts` | 조회 (검색, 카렌다, 정렬, 상세, 표시형식, Excel, 점검항목·표준작업 탭) |
-| `tests/ap591/exec-setting.spec.ts` | Setting (검색·상세 Field, Tab, 목록, 점검항목, 점검값 상세) — 바꾼 값은 되돌림 |
+| `tests/common/setting.spec.ts` + `tests/screens/ap591.ts` | Setting (메뉴 공통 테스트: 검색·상세 Field, Tab, 목록, 점검항목, 점검값 상세) — 바꾼 값은 되돌림 |
 | `tests/ap591/exec-work.spec.ts` | 점검작업 수정·점검값·Edit·첨부·Linked·확정 |
 | `tests/ap591/evidence.spec.ts` | 오류·개선 캡처 |
 | `tests/support/pmexec.ts`, `pmexec-data.ts` | AP591 화면 부품 |

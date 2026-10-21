@@ -141,3 +141,73 @@ export const gridBodyHeight = (f: Frame) =>
 /** 검색 영역 라벨(보이는 것만, 화면 순서) */
 export const searchLabels = (f: Frame) =>
   f.evaluate(() => [...document.querySelectorAll<HTMLElement>('label')].filter((l) => l.offsetWidth > 0).map((l) => l.innerText.trim()));
+
+// 설정 목록의 칸 순서(td, 체크박스 포함): Field 설정 정렬값 2, 화면표시명 3 / 목록 Setting 정렬값 2, 칼럼명 4, 너비 5 / Tab 설정 Display 3
+export const TD = { order: 2, name: 3, colName: 4, width: 5, tabDisplay: 3 };
+
+/** 설정 목록에서 이름(화면표시명·칼럼명)이 정확히 같은 칸이 있는 행의 키(ID 칸)와 칸 글자 */
+export async function rowByName(f: Frame, name: string) {
+  return f.evaluate((name) => {
+    const rows = [...document.querySelectorAll<HTMLTableRowElement>('div.gridbox .objbox tr')].filter((tr) => tr.offsetHeight > 0);
+    for (const tr of rows) {
+      const cells = [...tr.querySelectorAll<HTMLElement>('td')];
+      const tds = cells.map((td) => (td.innerText || '').trim());
+      const vis = cells.map((td) => td.offsetWidth > 0);
+      const ni = tds.findIndex((t, i) => t === name && vis[i]);
+      if (ni < 0) continue;
+      // 키: 점(.)이 있거나 영문으로 된 ID 칸
+      const key = tds.find((t, i) => vis[i] && /^[A-Za-z][\w.]+$/.test(t) && t !== name) ?? '';
+      return { key, tds, vis, nameIdx: ni };
+    }
+    return null;
+  }, name);
+}
+
+/** 설정 목록 전체 (각 행의 보이는 칸) */
+export const settingRows = (f: Frame) => f.evaluate(() =>
+  [...document.querySelectorAll<HTMLTableRowElement>('div.gridbox .objbox tr')].filter((tr) => tr.offsetHeight > 0 && tr.querySelector('td'))
+    .map((tr) => [...tr.querySelectorAll<HTMLElement>('td')].filter((td) => td.offsetWidth > 0).map((td) => td.innerText.trim())));
+
+/** 열린 팝업 닫기 (팝업 닫기 X 는 팝업 프레임 안에 있음) */
+export async function closePopups(page: Page) {
+  for (let i = 0; i < 3; i++) {
+    const pops = page.frames().filter((f) => /popupIframe/.test(f.name()) && f.url() !== 'about:blank').reverse();
+    let closed = false;
+    for (const f of pops) {
+      const x = f.locator('div.b_pwin_close:visible').first();
+      if (await x.isVisible().catch(() => false)) { await x.click().catch(() => {}); closed = true; await settle(page, 800); break; }
+    }
+    if (!closed) break;
+  }
+}
+
+/** 설정 목록에서 key 행을 체크하고 Edit 를 눌렀을 때 칸마다 수정 가능 여부 (dhtmlx 칸 종류 ro = 읽기전용). 저장은 하지 않음 */
+export async function editableColumns(page: Page, f: Frame, key: string) {
+  await checkRow(f, key);
+  await btn(f, 'Edit').click();
+  await settle(page, 1500);
+  return f.evaluate(() => {
+    const w = window as any;
+    const g = Object.keys(w).map((k) => { try { return w[k]; } catch { return null; } }).find((o) => o && typeof o.getColType === 'function' && typeof o.getRowsNum === 'function');
+    return Object.fromEntries([...Array(g.getColumnsNum())].map((_, i) => [g.getColLabel(i), g.getColType(i) !== 'ro' && g.getColType(i) !== 'cntr']));
+  }) as Promise<Record<string, boolean>>;
+}
+
+/** 점검항목 목록처럼 Setting 이 하나뿐인 목록: 첫 Setting → 칼럼 설정(사용자정의Grid) 팝업 */
+export async function openColSetting(page: Page, f: Frame) {
+  await closePopups(page);
+  await f.locator('a:visible', { hasText: /^\s*Setting\s*$/ }).first().click();
+  await settle(page, 2500);
+  let found: Frame | undefined;
+  for (let i = 0; i < 30 && !found; i++) {
+    found = page.frames().find((x) => x.name() === F_COL);
+    if (!found) await page.waitForTimeout(500);
+  }
+  if (!found) throw new Error(`프레임 없음: ${F_COL}`);
+  return found;
+}
+
+/** 목록 Setting 팝업의 리스트 길이 -/+ 버튼 */
+export async function stepListLength(page: Page, sign: '+' | '-') {
+  await frameNamed(page, 'popupIframe1').locator('a:visible', { hasText: new RegExp(`^\s*${escapeRe(sign)}\s*$`) }).first().click();
+}
