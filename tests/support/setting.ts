@@ -83,14 +83,14 @@ export async function editSettingRow(page: Page, f: Frame, key: string, cells: R
     const cell = settingRow(f, key).locator('td').nth(+idx);
     await cell.click();
     await page.waitForTimeout(300);
-    if (!(await cell.locator('input').count())) await cell.dblclick();
+    if (!(await cell.locator('input, textarea').count())) await cell.dblclick();
     await page.waitForTimeout(300);
     if (await cell.locator('p.open_spop').count()) {
       await cell.locator('p.open_spop').click();
       await settle(page, 1500);
       await pickInLov(page, await lovContentFrame(page), value);
     } else {
-      const input = cell.locator('input').first();
+      const input = cell.locator('input, textarea').first();
       await input.fill(value);
       await input.press('Enter');
     }
