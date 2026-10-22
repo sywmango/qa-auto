@@ -60,4 +60,4 @@ D:\qa-auto 에서 PowerShell:
 | `tests/ad210/plan-work.spec.ts` | 점검작업 수정·필수값·점검값·첨부문서·Linked·완료처리 |
 | `tests/ad210/evidence.spec.ts` | 오류 화면 캡처 (바꾼 값은 되돌림) |
 | `tests/support/pmplan.ts`, `pmplan-data.ts` | AD210 화면 부품 |
-| `tests/ad210/tools/*` | 화면 구조 탐색용 (EXPLORE=1 일 때만) |
+| `tests-보관/ad210-tools/*` | 화면 구조 탐색용 (보관, 실행 안 함) |

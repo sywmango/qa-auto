@@ -66,7 +66,7 @@ D:\qa-auto 에서 PowerShell:
 - 점검일정 새 창은 기간이 "지난달 1일~오늘" → `readPlans` 가 1년 뒤까지 넓힘.
 - 목록 삭제는 행을 한 번 누른 뒤 체크 (체크만 하면 동작 안 할 때가 있음).
 - Setting 은 개인 저장(내 계정만). 검색 영역 Setting = Field/Tab 설정, 목록 영역 Setting = 칼럼·리스트 길이. 숨기기/보이기 버튼은 누르면 바로 저장, Edit 는 저장 버튼. 부품은 `tests/support/setting.ts`.
-- 같은 계정으로 다른 실행이 새로 로그인하면 이쪽 세션이 끊겨 로그인 화면으로 간다 (Setting 원복 도중이면 다시 로그인 후 원복 확인: `tests/ad230/tools/check-setting.spec.ts`).
+- 같은 계정으로 다른 실행이 새로 로그인하면 이쪽 세션이 끊겨 로그인 화면으로 간다 (Setting 원복 도중이면 다시 로그인 후 Setting 화면에서 원래 값인지 확인. 예전 확인 도구는 `tests-보관/ad230-tools/check-setting.spec.ts`).
 - QA 서버가 가끔 `/dream/index.do` 404 (재배포) → 30초마다 확인 후 이어서.
 
 ## 7. 파일
