@@ -47,7 +47,7 @@
     <dl>
       <dt>도움되는 점</dt><dd>화면을 열 때 콘솔 에러, 실패한 네트워크 요청, 느린 화면을 Claude가 직접 확인. 메뉴 순회 스모크(콘솔 에러 확인)와 성능 확인에 바로 쓴다.</dd>
       <dt>필요한 것</dt><dd>설정 한 줄 (<code>npx chrome-devtools-mcp</code>), Chrome</dd>
-      <dt>주의</dt><dd class="warn">기본으로 사용 통계·성능 데이터를 Google 로 보냄 → <code>--no-performance-crux</code> 와 사용 통계 끄는 옵션(설치 때 README 확인)으로 끈다.</dd>
+      <dt>주의</dt><dd class="warn">기본으로 사용 통계·성능 데이터를 Google 로 보냄 → <b>우리에게 이득이 없어 끈다.</b> 사용 통계는 Google 이 도구를 개선하는 데만 쓰이고, 성능(CrUX)은 공개 사이트의 실제 사용자 속도를 가져오는 기능이라 회사 IP 전용 QA 서버는 데이터가 없다. 켜 두면 QA 서버 주소만 Google 로 나간다. <code>--no-performance-crux</code> 와 사용 통계 끄는 옵션(설치 때 README 확인)으로 끈다.</dd>
     </dl>
   </div>
 
@@ -63,31 +63,21 @@
   <div class="card">
     <h3><span class="rank">3</span>Playwright Test Agents <span class="tag">추가 설치 없음</span></h3>
     <dl>
-      <dt>도움되는 점</dt><dd><b>Planner</b> 화면 탐색 → 테스트 계획 / <b>Generator</b> 계획 → 코드 / <b>Healer</b> 화면이 바뀌어 깨진 테스트를 자동 수정. 배포마다 셀렉터가 바뀔 때 유용.</dd>
-      <dt>필요한 것</dt><dd>Playwright 1.56 이상 (우리는 1.64). <code>npx playwright init-agents</code></dd>
-      <dt>주의</dt><dd class="warn">새 MCP 는 아님. Healer 가 고친 내용은 사람이 확인 후 반영.</dd>
-    </dl>
-  </div>
-
-  <div class="card">
-    <h3><span class="rank">4</span>Excel MCP <span class="tag">급하지 않음</span></h3>
-    <dl>
-      <dt>도움되는 점</dt><dd>UT 양식 엑셀을 Claude가 직접 열어 확인·수정</dd>
-      <dt>참고</dt><dd>지금 <code>scripts/write-results.py</code> 로 이미 됨</dd>
-    </dl>
-  </div>
-
-  <div class="card">
-    <h3><span class="rank">5</span>모바일 (Appium MCP, mobile-mcp) <span class="tag">요청 있을 때</span></h3>
-    <dl>
-      <dt>도움되는 점</dt><dd>DREAM 모바일 앱이 있다면 같은 방식으로 앱 테스트</dd>
-      <dt>필요한 것</dt><dd>Android 에뮬레이터 또는 기기</dd>
+      <dt>무엇인지</dt><dd>Playwright 에 들어 있는 <b>Claude용 역할 설정 파일 3개</b>. 지금 Claude가 손으로 하던 "화면 보기 → 계획 → 코드 → 깨지면 고치기"를 정해진 방식으로 나눠 맡긴다.</dd>
+      <dt>Planner</dt><dd>화면을 직접 열어 다니며 버튼·칸·탭을 확인하고, 테스트 계획을 md 로 쓴다. <br>예) "정기점검실행 화면을 보고 계획 써줘" → 조회·확정·점검값 입력 케이스 목록이 나옴. 지금 우리 메뉴 프롬프트·cases.json 을 만드는 단계와 같다.</dd>
+      <dt>Generator</dt><dd>그 계획을 보고 실제 화면에서 셀렉터를 확인하며 <code>.spec.ts</code> 코드를 만든다.</dd>
+      <dt>Healer</dt><dd>실패한 테스트를 다시 돌려 화면을 보고, <b>화면이 바뀐 탓</b>(버튼 이름·위치·iframe 이름 변경)이면 코드를 고쳐 다시 돌린다. <b>진짜 오류</b>로 보이면 고치지 않고 "건너뜀(fixme)" 표시만 한다.<br>예) 재배포 후 [확정] 버튼 이름이 [완료] 로 바뀌어 30건이 실패 → Healer 가 이름만 바꿔 통과시킴. 사람은 바뀐 부분만 확인.</dd>
+      <dt>우리에게</dt><dd>가장 쓸모 있는 것은 Healer. 배포마다 깨진 테스트를 고치는 시간이 줄어든다. Planner·Generator 는 지금 하는 방식과 비슷해서 효과가 작다.</dd>
+      <dt>필요한 것</dt><dd>Playwright 1.56 이상 (우리는 1.64) → 추가 설치 없음. <code>npx playwright init-agents --loop=claude</code> 한 번 실행하면 설정 파일이 생긴다.</dd>
+      <dt>주의</dt><dd class="warn">새 MCP 가 아니라 Playwright 기능. Healer 가 진짜 오류를 "화면 변경"으로 잘못 보고 고칠 수 있으므로, 고친 내용은 PR 에서 사람이 확인 후 반영한다.</dd>
     </dl>
   </div>
 
   <h2>지금은 필요 없는 것</h2>
   <table>
     <tr><th>도구</th><th>이유</th></tr>
+    <tr><td>Excel MCP</td><td><code>scripts/write-results.py</code> 로 UT 엑셀 작성이 이미 됨. 추가 효과 작음</td></tr>
+    <tr><td>모바일 (Appium MCP, mobile-mcp)</td><td>지금은 웹 QA 단계. 모바일 테스트를 시작할 때 다시 검토</td></tr>
     <tr><td>GitHub MCP</td><td>이 PC 의 <code>gh</code> 로 PR·머지 이미 됨</td></tr>
     <tr><td>테스트 관리 도구 MCP (QA Sphere, TestRail 등)</td><td>회사가 엑셀 UT 양식을 씀. 도입하면 다시 검토</td></tr>
     <tr><td>Selenium MCP</td><td>이미 Playwright 사용</td></tr>
@@ -106,7 +96,6 @@
     <li>Chrome DevTools MCP: <a href="https://developer.chrome.com/docs/devtools">developer.chrome.com</a>, <a href="https://www.debugbear.com/blog/chrome-devtools-mcp-performance-debugging">debugbear.com</a></li>
     <li>DB MCP: <a href="https://glama.ai/mcp/servers/vj4pni74ex">Oracle (glama.ai)</a>, <a href="https://mcpservers.org/servers/JexinSam/mssql_mcp_server">MSSQL (mcpservers.org)</a></li>
     <li>Playwright Test Agents: <a href="https://bug0.com/blog/playwright-test-agents">bug0.com</a>, <a href="https://testdino.com/blog/playwright-ai-ecosystem-2026">testdino.com</a></li>
-    <li>Excel MCP: <a href="https://www.pypi.org/project/excel-mcp-server">pypi.org</a></li>
     <li>QA MCP 정리: <a href="https://quashbugs.com/blog/best-mcp-servers-for-qa-testing">quashbugs.com</a></li>
   </ul>
 </main>
