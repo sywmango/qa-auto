@@ -43,7 +43,7 @@ if ($Steps -contains 'data' -and $Steps -contains 'complete') {
 foreach ($s in $Steps) {
     switch ($s) {
         'view'     { Run-Step 'view' 'ad230/pmi-cycle.spec' }
-        'setting'  { Run-Step 'setting' 'ad230/pmi-cycle-setting' }   # Setting 바꿔 보고 원래 값으로 되돌림 (약 8분)
+        'setting'  { Run-Step 'setting' 'common/setting' }   # Setting 바꿔 보고 원래 값으로 되돌림 (약 8분)
         'data'     {
             # 순서가 필요한 흐름이라 묶음으로 나눠 위에서부터 차례대로
             Run-Step 'data1' 'ad230/pmi-cycle-data' 'TC_018|TC_020|TC_019|TC_021|TC_022'

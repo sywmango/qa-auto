@@ -55,7 +55,7 @@ D:\qa-auto 에서 PowerShell:
 | 파일 | 내용 |
 | --- | --- |
 | `tests/ad210/plan-view.spec.ts` | 조회 (검색, 카렌다 건수, 트리, 정렬, 표시형식, 상세, Excel, 하위 탭) |
-| `tests/ad210/plan-setting.spec.ts` | Setting 상세 (Field/Tab 설정, 초기화, 원복) |
+| `tests/common/setting.spec.ts` + `tests/screens/ad210.ts` | Setting 상세 (메뉴 공통 테스트, 화면 정의는 screens/ad210.ts) |
 | `tests/ad210/plan-data.spec.ts` | 일정추가·작업일자 수정·Edit·일정확정·삭제 + 정리 |
 | `tests/ad210/plan-work.spec.ts` | 점검작업 수정·필수값·점검값·첨부문서·Linked·완료처리 |
 | `tests/ad210/evidence.spec.ts` | 오류 화면 캡처 (바꾼 값은 되돌림) |

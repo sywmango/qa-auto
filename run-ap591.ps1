@@ -44,7 +44,7 @@ if ($Steps -contains 'view' -and $Steps -contains 'work') {
 foreach ($s in $Steps) {
     switch ($s) {
         'view'     { Run-Step 'view' 'ap591/exec-view' }
-        'setting'  { Run-Step 'setting' 'ap591/exec-setting' }
+        'setting'  { Run-Step 'setting' 'common/setting' }
         'work'     { Run-Step 'work' 'ap591/exec-work' }
         'evidence' { Run-Step 'evidence' 'ap591/evidence' }
         'report'   {

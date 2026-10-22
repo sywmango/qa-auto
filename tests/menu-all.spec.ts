@@ -1,13 +1,22 @@
 import { test, expect, Page } from '@playwright/test';
 import { allMenus } from './menu-all.data';
+import { iconsShown, topTabs } from './support/header';
 
 // 전체 메뉴 점검 테스트
 // menu-all.data.ts의 모든 메뉴를 하나씩 열어서 아래를 확인합니다.
 //   1) 화면 위쪽에 메뉴 이름(화면 제목)이 보이는지
 //   2) 목록 화면이면 열 이름이 보이는지
 //   3) 화면 스크립트 에러, 서버 에러(500번대), 경고창이 없는지
+//   4) 화면 상단 공통 아이콘(즐겨찾기·업무그룹·편집모드, 위쪽 탭이 있으면 Tab설정)이 보이는지 (동작은 tests/common/header.spec.ts 에서 대표 메뉴로)
 // 메뉴가 많아서 10분 이상 걸립니다. 빠른 확인은 menu-smoke를 쓰세요.
 //   실행: .\run-tests.ps1 menu-all
+
+// 상단 아이콘 알려진 오류 (사용자 확인 2026-10-22). 메뉴 번호 → 내용. 결과에 '오류' 로 남기고 테스트는 실패로 둡니다.
+const HEADER_ISSUES: Record<string, string> = {
+  '1342': '오류: 업무그룹 아이콘 없음. 업무그룹 설정 메뉴에서 이 화면을 추가해도 업무그룹 화면이 빈칸으로 나옴 (사용자 확인)',
+  '1362': '오류: 업무그룹 아이콘 없음. 업무그룹 설정 메뉴에서 이 화면을 추가해도 업무그룹 화면이 빈칸으로 나옴 (사용자 확인)',
+  '97': '오류: 위쪽 탭이 없는 화면인데 Tab설정 아이콘이 보임',
+};
 
 // 왼쪽 메뉴(#sidebar)가 아닌 곳에 메뉴 이름이 보이는지 확인합니다.
 async function isScreenTitleVisible(page: Page, name: string) {
@@ -88,7 +97,16 @@ for (const m of allMenus) {
     // 화면이 다 뜰 때까지 잠깐 기다린 뒤 에러를 확인합니다.
     await page.waitForLoadState('networkidle').catch(() => {});
 
-    // 5) 기대 결과: 에러와 경고창이 없어야 함
+    // 5) 기대 결과: 상단 공통 아이콘이 보여야 함 (즐겨찾기·업무그룹·편집모드는 항상, Tab설정은 위쪽 탭이 있는 화면만)
+    const icons = await iconsShown(page);
+    const tabs = await topTabs(page);
+    const expected = { bookmark: true, workgroup: true, tabSetting: tabs.length > 0, edit: true };
+    const diff = Object.keys(expected).filter((k) => icons[k] !== expected[k as keyof typeof expected]);
+    test.info().annotations.push({ type: '상단', description: `위쪽 탭 ${tabs.length}개, 아이콘 ${Object.entries(icons).filter(([, v]) => v).map(([k]) => k).join(',')}` });
+    if (diff.length && HEADER_ISSUES[m.menuId]) test.info().annotations.push({ type: '실제결과', description: HEADER_ISSUES[m.menuId] });
+    expect.soft(diff, `상단 공통 아이콘 (Tab설정은 위쪽 탭이 있을 때만)${HEADER_ISSUES[m.menuId] ? ` — ${HEADER_ISSUES[m.menuId]}` : ''}`).toEqual([]);
+
+    // 6) 기대 결과: 에러와 경고창이 없어야 함
     expect(scriptErrors, '화면 스크립트 에러가 없는지 확인').toEqual([]);
     expect(serverErrors, '서버 에러(500번대)가 없는지 확인').toEqual([]);
     expect(dialogs, '경고창이 뜨지 않는지 확인').toEqual([]);
