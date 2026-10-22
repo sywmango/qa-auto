@@ -44,6 +44,17 @@ export interface TabTarget {
   timeout?: number;
 }
 
+/** 화면 상단 공통 기능(즐겨찾기·업무그룹·Tab설정·편집모드) 대상 */
+export interface HeaderTarget {
+  menuId: string;                            // 메뉴 번호 (즐겨찾기 메뉴 id 는 F+메뉴번호)
+  open: (page: Page) => Promise<Frame>;      // 메뉴를 열고 검색 영역 프레임을 돌려줌
+  pageTab: string;                           // open 으로 연 위쪽 탭 이름 (업무그룹에 이 탭이 들어감)
+  deep?: boolean;                            // 동작까지 깊게 확인할 대표 메뉴 (나머지는 아이콘·탭 목록만)
+  field?: { name: string; before: string };  // 편집모드로 옮겨 볼 검색 필드 (before 앞으로)
+  tab?: { name: string; before: string };    // 편집모드로 옮겨 볼 위쪽 탭
+  detail?: { open: (page: Page) => Promise<Frame>; name: string; before: string }; // 편집모드로 옮겨 볼 상세 필드
+}
+
 export interface Screen {
   code: string;                              // 메뉴 코드 (AD230)
   name: string;                              // 메뉴 이름
@@ -51,4 +62,5 @@ export interface Screen {
   fields: FieldTarget[];
   lists: ListTarget[];
   tabs: TabTarget[];
+  header?: HeaderTarget;
 }

@@ -11,8 +11,8 @@ export default defineConfig({
   // (run-ad230.ps1 이 자동으로 켬)
   // 정기점검계획(AD210) 테스트도 같은 이유로 RUN_AD210=1 일 때만 실행, 정기점검실행(AP591)은 RUN_AP591=1
   testIgnore: [...(process.env.RUN_AD230 ? [] : ['**/ad230/**']), ...(process.env.RUN_AD210 ? [] : ['**/ad210/**']), ...(process.env.RUN_AP591 ? [] : ['**/ap591/**']),
-    // 공통 Setting 테스트는 위 RUN_ 값이 켜진 메뉴만 만듦 (하나도 없으면 제외)
-    ...(process.env.RUN_AD230 || process.env.RUN_AD210 || process.env.RUN_AP591 ? [] : ['**/common/setting.spec.ts'])],
+    // 공통 테스트(Setting, 상단 공통 기능)는 위 RUN_ 값이 켜진 메뉴만 만듦 (하나도 없으면 제외)
+    ...(process.env.RUN_AD230 || process.env.RUN_AD210 || process.env.RUN_AP591 ? [] : ['**/common/**'])],
 
   // 같은 QA 계정을 쓰므로 테스트끼리 서로 꼬이지 않게 하나씩 순서대로 실행합니다.
   fullyParallel: false,

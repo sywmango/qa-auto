@@ -61,4 +61,5 @@ export const AP591: Screen = {
   tabs: [
     { tc: 'AP591_TC_024', title: '상세 Tab 설정', open: workDetail, key: 'maPtDocLibList', name: '첨부문서', shown: docTabShown, timeout: 600_000 },
   ],
+  header: { menuId: '944', open: cond, pageTab: '목록(조건)' },
 };

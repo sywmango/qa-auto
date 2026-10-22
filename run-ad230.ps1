@@ -7,6 +7,7 @@
 #   .\run-ad230.ps1 report               이미 돌린 결과로 엑셀·보고서만 다시
 #
 # 단계: view(조회) setting(Setting 상세) data(생성·수정·하위목록·일정) extra(주기구분·표시형식) complete(작업완료 후 재조정)
+#       header(상단 공통 기능, 기본 단계에는 없음: .un-xxx.ps1 header)
 #       delete(삭제) evidence(오류 캡처) report(엑셀·보고서)
 # 주의: view 를 뺀 단계는 [sychoi] 주기를 새로 만들고, 작업을 완료 처리하고, 삭제합니다.
 #       준비 데이터(가동/사용달력, 표준작업, 설비종류 점검항목)는 docs\AD230\AD230_handoff.md 의 "준비" 참고.
@@ -44,6 +45,7 @@ foreach ($s in $Steps) {
     switch ($s) {
         'view'     { Run-Step 'view' 'ad230/pmi-cycle.spec' }
         'setting'  { Run-Step 'setting' 'common/setting' }   # Setting 바꿔 보고 원래 값으로 되돌림 (약 8분)
+        'header'   { Run-Step 'header' 'common/header' }   # 상단 공통 기능 (즐겨찾기·업무그룹·Tab설정·편집모드) 깊게 확인, 바꾼 값은 되돌림
         'data'     {
             # 순서가 필요한 흐름이라 묶음으로 나눠 위에서부터 차례대로
             Run-Step 'data1' 'ad230/pmi-cycle-data' 'TC_018|TC_020|TC_019|TC_021|TC_022'

@@ -29,6 +29,16 @@ async function detailOpens(page: Page) {
   return page.frames().some((x) => x.name() === F_DETAIL);
 }
 
+/** 목록 3번째 행 작업명을 눌러 연 상세 화면 */
+async function openDetail(page: Page) {
+  const f = await openCond(page);
+  const g = new Grid(f, '예방작업번호');
+  await g.clickCell('작업명', (await g.rows())[2]['작업명']);
+  const d = await waitFrame(page, F_DETAIL);
+  await settle(page, 3000);
+  return d;
+}
+
 export const AD230: Screen = {
   code: 'AD230',
   name: '정기점검주기',
@@ -42,4 +52,11 @@ export const AD230: Screen = {
   tabs: [
     { tc: TC, title: 'Tab 설정', open: openCond, key: 'workPmListRInsDetail', name: '정기점검주기설정', shown: detailOpens },
   ],
+  // 상단 공통 기능은 이 메뉴에서 깊게 확인
+  header: {
+    menuId: '454', open: openCond, pageTab: '목록(조건)', deep: true,
+    field: { name: '거래처', before: '작업명' },
+    tab: { name: '목록(조건)', before: '목록(위치)' },
+    detail: { open: openDetail, name: '비고', before: '작업명' },
+  },
 };

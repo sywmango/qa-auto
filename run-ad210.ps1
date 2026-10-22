@@ -7,6 +7,7 @@
 #   .\run-ad210.ps1 report               이미 돌린 결과로 엑셀·보고서만 다시
 #
 # 단계: view(조회) setting(Setting 상세, 바꾼 값은 되돌림) data(일정추가·수정·Edit·일정확정·삭제)
+#       header(상단 공통 기능, 기본 단계에는 없음: .un-xxx.ps1 header)
 #       work(점검작업 수정·점검값·첨부·Linked·완료처리) evidence(오류 캡처) report(엑셀·보고서)
 # 주의: data·work 는 [sychoi] 주기 8007 / 설비 100302AG13 에 일정을 추가하고 확정·완료합니다.
 #       확정·완료한 계획은 지울 수 없어 남습니다 (작업계획으로 남은 것은 data 마지막에 지움).
@@ -45,6 +46,7 @@ foreach ($s in $Steps) {
     switch ($s) {
         'view'     { Run-Step 'view' 'ad210/plan-view' }
         'setting'  { Run-Step 'setting' 'common/setting' }
+        'header'   { Run-Step 'header' 'common/header' }   # 상단 공통 기능 (아이콘·Tab설정 목록만)
         'data'     { Run-Step 'data' 'ad210/plan-data' }
         'work'     { Run-Step 'work' 'ad210/plan-work' }
         'evidence' { Run-Step 'evidence' 'ad210/evidence' }
