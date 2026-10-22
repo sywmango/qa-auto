@@ -54,7 +54,7 @@ export const AD230: Screen = {
   ],
   // 상단 공통 기능은 이 메뉴에서 깊게 확인
   header: {
-    menuId: '454', open: openCond, pageTab: '목록(조건)', deep: true,
+    menuId: '454', open: openCond, pageTab: '목록(조건)', wgPage: '정기점검주기 - 목록(조건)', deep: true,
     field: { name: '거래처', before: '작업명' },
     tab: { name: '목록(조건)', before: '목록(위치)' },
     detail: { open: openDetail, name: '비고', before: '작업명' },

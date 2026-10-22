@@ -30,6 +30,10 @@ export const isBookmarked = (page: Page) => page.locator(ICONS.bookmark).first()
 /** 왼쪽 메뉴 즐겨찾기에 이 메뉴(F+메뉴번호)가 있는지 */
 export const inFavorites = (page: Page, menuId: string) => page.evaluate((id) => !!document.querySelector(`#mainMenu [id="F${id}"]`), menuId);
 
+/** 왼쪽 메뉴 즐겨찾기 목록의 메뉴 이름들 */
+export const favoriteNames = (page: Page) => page.evaluate(() =>
+  [...document.querySelectorAll<HTMLElement>('#mainMenu .submenu-item.FAVORITE')].map((e) => (e.firstChild?.textContent || e.textContent || '').trim()));
+
 export async function toggleBookmark(page: Page) {
   const res = page.waitForResponse((r) => /toggleMyMenu/.test(r.url()), { timeout: 15_000 });
   await page.locator(ICONS.bookmark).first().click();

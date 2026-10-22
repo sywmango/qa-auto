@@ -2,9 +2,10 @@ import { test, expect, Page, Frame } from '@playwright/test';
 import { settle } from '../support/dream';
 import { openSetting, resetSetting, editableColumns, searchLabels, closePopups } from '../support/setting';
 import {
-  iconsShown, topTabs, isBookmarked, inFavorites, toggleBookmark, openWorkgroup, workgroupRows, toggleWorkgroup, workgroupTabs,
+  iconsShown, topTabs, isBookmarked, inFavorites, favoriteNames, toggleBookmark, openWorkgroup, workgroupRows, toggleWorkgroup,
   openTopTabSetting, topTabSettingRows, isEditMode, setEditMode, dragField, dragTopTab,
 } from '../support/header';
+import { PREFIX, createGroup, deleteGroup, cleanupGroups, groupList, groupPages, addPages, groupScreen, inLeftMenu } from '../support/workgroup';
 import { Screen, HeaderTarget } from '../screens/types';
 import { AD230 } from '../screens/ad230';
 import { AD210 } from '../screens/ad210';
@@ -19,6 +20,9 @@ import { AP591 } from '../screens/ap591';
 const SCREENS: Screen[] = [AD230, AD210, AP591].filter((s) => s.header);
 
 test.describe.configure({ timeout: 240_000 });
+
+// 업무그룹설정에서 넣으면 빈칸으로 나오는 화면 (오류 재현용)
+const WG_DASHBOARDS = ['Process센터', 'Layout센터'];
 
 const note = (t: string) => test.info().annotations.push({ type: '실제결과', description: t });
 const labels = (f: Frame) => searchLabels(f).then((l) => l.filter(Boolean));
@@ -46,6 +50,11 @@ function deepCases(s: Screen, h: HeaderTarget) {
       log.push(`별 누름 → 별 ${b1 ? '켜짐' : '꺼짐'}, 즐겨찾기 ${f1 ? '있음' : '없음'} / 다시 열기 → 별 ${b2 ? '켜짐' : '꺼짐'}, 즐겨찾기 ${f2 ? '있음' : '없음'}`);
       expect.soft(b1, '별 상태가 바뀜').toBe(!b0);
       expect.soft(f1, '왼쪽 즐겨찾기에 바로 반영').toBe(!f0);
+      if (!b0) {
+        const fav = await favoriteNames(page);
+        log.push(`왼쪽 즐겨찾기 목록: ${fav.join(', ')}`);
+        expect.soft(fav, `왼쪽 즐겨찾기 목록에 '${s.name}'`).toContain(s.name);
+      }
       expect.soft([b2, f2], '다시 열어도 유지').toEqual([!b0, !f0]);
     } finally {
       await h.open(page);
@@ -58,37 +67,74 @@ function deepCases(s: Screen, h: HeaderTarget) {
     expect([b3, f3], '원래대로').toEqual([b0, f0]);
   });
 
-  test(`상단 공통 업무그룹: 지금 화면을 업무그룹에 넣었다가 뺀다. (대표 메뉴 ${s.name})`, async ({ page }) => {
-    await h.open(page);
-    const rows0 = await workgroupRows(await openWorkgroup(page));
-    const g = rows0.find((r) => !r.checked);
-    expect(g, '넣어 볼(선택 안 된) 업무그룹').toBeTruthy();
-    const log = [`업무그룹 ${rows0.map((r) => `${r.name}${r.checked ? '(선택)' : ''}`).join(', ')} → '${g!.name}' 에 넣어 봄`];
+  test(`상단 공통 업무그룹: 아이콘으로 지금 화면을 넣으면 업무그룹설정과 왼쪽 업무그룹 화면에 나온다. (대표 메뉴 ${s.name})`, async ({ page }) => {
+    test.setTimeout(360_000);
+    await cleanupGroups(page);
+    const name = `${PREFIX} 아이콘`;
+    const no = await createGroup(page, name);
+    const log = [`업무그룹설정에서 '${name}'(${no}) 생성 → 왼쪽 메뉴 ${(await inLeftMenu(page, no)) ? '있음' : '없음'}`];
     try {
-      await toggleWorkgroup(page, page.frames().find((x) => x.name() === 'popupIframe1')!, g!.no);
-      await closePopups(page);
-      const tabs = await workgroupTabs(page, g!.no);
       await h.open(page);
-      const rows1 = await workgroupRows(await openWorkgroup(page));
-      const on = rows1.find((r) => r.no === g!.no)?.checked;
-      log.push(`선택·저장 → 다시 열어 팝업 선택 ${on ? '됨' : '안 됨'}, 왼쪽 메뉴 '${g!.name}' 화면 탭: ${tabs.join(', ')}`);
-      expect.soft(on, '팝업에서 선택된 상태로 저장').toBe(true);
-      expect.soft(tabs.some((t) => t.includes(h.pageTab)), `업무그룹 화면에 '${h.pageTab}' 탭`).toBe(true);
+      const pop = await openWorkgroup(page);
+      const g = (await workgroupRows(pop)).find((r) => r.no === no);
+      expect(g, '아이콘 팝업에 만든 업무그룹').toBeTruthy();
+      await toggleWorkgroup(page, pop, no);
+      await closePopups(page);
+      const pages = await groupPages(page, no);
+      const screen = await groupScreen(page, no);
+      log.push(`아이콘 → '${name}' 선택·저장 → 업무그룹설정 업무화면: ${pages.map((r) => `${r['메뉴명']}(${r['화면ID']})`).join(', ') || '없음'}`);
+      log.push(`왼쪽 업무그룹 화면 탭: ${screen.map((x) => `${x.tab}${x.blank ? '(빈칸)' : ''}`).join(', ') || '없음'}`);
+      expect.soft(pages.some((r) => r['메뉴명'] === s.name), `업무그룹설정 업무화면에 '${s.name}'`).toBe(true);
+      expect.soft(screen.some((x) => x.tab.includes(h.pageTab) && !x.blank), `업무그룹 화면에 '${h.pageTab}' 탭이 열림`).toBe(true);
     } finally {
-      await closePopups(page);
-      await h.open(page);
-      const f = await openWorkgroup(page);
-      if ((await workgroupRows(f)).find((r) => r.no === g!.no)?.checked) await toggleWorkgroup(page, f, g!.no);
-      await closePopups(page);
+      await deleteGroup(page, no);
     }
-    const tabs2 = await workgroupTabs(page, g!.no);
-    await h.open(page);
-    const rows2 = await workgroupRows(await openWorkgroup(page));
-    await closePopups(page);
-    log.push(`선택 해제·저장 → ${same(rows2, rows0) ? '원래대로' : `다름: ${JSON.stringify(rows2)}`}, 업무그룹 화면 탭: ${tabs2.join(', ')}`);
-    expect.soft(tabs2.some((t) => t.includes(h.pageTab)), '빼면 업무그룹 화면에서 사라짐').toBe(false);
+    const left = await inLeftMenu(page, no);
+    const listed = (await groupList(page)).some((r) => r['업무그룹#'] === no);
+    log.push(`업무그룹 삭제 → 업무그룹설정 목록 ${listed ? '남음' : '없음'}, 왼쪽 메뉴 ${left ? '남음' : '없음'}`);
     note(log.join('\n'));
-    expect(rows2, '원래대로').toEqual(rows0);
+    expect([listed, left], '지운 업무그룹은 목록·왼쪽 메뉴에서 사라짐').toEqual([false, false]);
+  });
+
+  test(`상단 공통 업무그룹: 업무그룹설정에서 넣은 화면이 왼쪽 업무그룹 화면에서 열린다. (대표 메뉴 ${s.name})`, async ({ page }) => {
+    test.setTimeout(360_000);
+    await cleanupGroups(page);
+    const name = `${PREFIX} 업무그룹설정`;
+    const no = await createGroup(page, name);
+    const log: string[] = [];
+    try {
+      await addPages(page, no, [h.wgPage]);
+      const pages = await groupPages(page, no);
+      const screen = await groupScreen(page, no);
+      log.push(`업무그룹설정 '${name}'(${no}) 업무화면 생성 → '${h.wgPage}' 선택 → 업무화면: ${pages.map((r) => `${r['메뉴명']}(${r['화면ID']})`).join(', ') || '없음'}`);
+      log.push(`왼쪽 업무그룹 화면 탭: ${screen.map((x) => `${x.tab} ${x.blank ? '빈칸' : `열림(요소 ${x.els})`}`).join(', ') || '없음'}`);
+      expect.soft(pages.some((r) => r['메뉴명'] === s.name), `업무화면에 '${s.name}'`).toBe(true);
+      expect.soft(screen.some((x) => x.tab.includes(h.pageTab) && !x.blank), `업무그룹 화면에 '${h.pageTab}' 탭이 열림`).toBe(true);
+    } finally {
+      await deleteGroup(page, no);
+    }
+    note(log.join('\n'));
+    expect((await groupList(page)).some((r) => r['업무그룹#'] === no), '지운 업무그룹').toBe(false);
+  });
+
+  test(`상단 공통 업무그룹: 업무그룹설정에서 넣은 통합센터 Process센터·Layout센터가 업무그룹 화면에서 열린다. (오류 재현)`, async ({ page }) => {
+    // 오류 (사용자 확인 2026-10-22): 두 화면은 상단 업무그룹 아이콘이 없고, 업무그룹설정에서 넣어도 업무그룹 화면이 빈칸
+    test.setTimeout(360_000);
+    await cleanupGroups(page);
+    const name = `${PREFIX} 통합센터`;
+    const no = await createGroup(page, name);
+    let screen: Awaited<ReturnType<typeof groupScreen>> = [];
+    try {
+      await addPages(page, no, WG_DASHBOARDS);
+      const pages = await groupPages(page, no);
+      screen = await groupScreen(page, no);
+      if (screen.some((x) => x.blank) || screen.length < WG_DASHBOARDS.length) await page.screenshot({ path: 'playwright/.data/evidence/header-workgroup-blank.png' });
+      note(`업무그룹설정 '${name}'(${no}) 업무화면: ${pages.map((r) => `${r['메뉴명']}(${r['화면ID']})`).join(', ') || '없음'}\n왼쪽 업무그룹 화면 탭: ${screen.map((x) => `${x.tab} ${x.blank ? '빈칸' : `열림(요소 ${x.els})`}`).join(', ') || '탭 없음'}`);
+    } finally {
+      await deleteGroup(page, no);
+    }
+    expect((await groupList(page)).some((r) => r['업무그룹#'] === no), '지운 업무그룹').toBe(false);
+    for (const n of WG_DASHBOARDS) expect.soft(screen.some((x) => x.tab.includes(n) && !x.blank), `업무그룹 화면에서 '${n}' 이 열림`).toBe(true);
   });
 
   test(`상단 공통 Tab설정: Edit 모드에서 바꿀 수 있는 칸을 확인한다. (대표 메뉴 ${s.name})`, async ({ page }) => {

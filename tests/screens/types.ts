@@ -49,6 +49,7 @@ export interface HeaderTarget {
   menuId: string;                            // 메뉴 번호 (즐겨찾기 메뉴 id 는 F+메뉴번호)
   open: (page: Page) => Promise<Frame>;      // 메뉴를 열고 검색 영역 프레임을 돌려줌
   pageTab: string;                           // open 으로 연 위쪽 탭 이름 (업무그룹에 이 탭이 들어감)
+  wgPage: string;                            // 업무그룹설정 업무화면 Lov(메뉴 트리)에서 이 화면 이름
   deep?: boolean;                            // 동작을 확인할 대표 메뉴 (공통 코드라 한 메뉴만)
   field?: { name: string; before: string };  // 편집모드로 옮겨 볼 검색 필드 (before 앞으로)
   tab?: { name: string; before: string };    // 편집모드로 옮겨 볼 위쪽 탭
