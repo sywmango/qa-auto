@@ -54,4 +54,4 @@ D:\qa-auto 에서 PowerShell:
 | `tests/ap591/exec-work.spec.ts` | 점검작업 수정·점검값·Edit·첨부·Linked·확정 |
 | `tests/ap591/evidence.spec.ts` | 오류·개선 캡처 |
 | `tests/support/pmexec.ts`, `pmexec-data.ts` | AP591 화면 부품 |
-| `tests/ap591/tools/*` | 화면 구조 탐색용 (EXPLORE=1 일 때만) |
+| `tests-보관/ap591-tools/*` | 화면 구조 탐색용 (보관, 실행 안 함) |
