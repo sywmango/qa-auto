@@ -61,11 +61,12 @@
   </div>
 
   <div class="card">
-    <h3><span class="rank">3</span>Playwright 테스트 자동 수정 (Test Agents) <span class="tag">추가 설치 없음</span></h3>
+    <h3><span class="rank">3</span>Playwright 테스트 자동 수정 (Test Agents) <span class="tag">확인 불필요 · 바로 적용</span></h3>
     <dl>
       <dt>한 줄로</dt><dd>화면이 바뀌어 깨진 테스트를 <b>Claude가 알아서 고쳐 주는</b> Playwright 기본 기능</dd>
       <dt>예시</dt><dd>재배포로 [확정] 버튼 이름이 바뀌어 30건 실패 → 이름만 고쳐 다시 통과. 진짜 오류면 고치지 않고 표시만.</dd>
-      <dt>필요한 것</dt><dd>추가 설치 없음 (Playwright 1.64 사용 중)</dd>
+      <dt>필요한 것</dt><dd>Playwright 는 이미 설치됨. 처음 한 번 <code>npx playwright init-agents</code> 로 설정 파일만 만들면 됨 (1분)</dd>
+      <dt>적용 방법</dt><dd>이후 테스트가 실패하면 Claude가 이 방식으로 고치고, PR 에 "화면 변경으로 고친 부분"을 따로 표시</dd>
       <dt>주의</dt><dd class="warn">고친 내용은 사람이 PR 에서 확인</dd>
     </dl>
   </div>
