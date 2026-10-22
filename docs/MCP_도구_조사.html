@@ -61,15 +61,12 @@
   </div>
 
   <div class="card">
-    <h3><span class="rank">3</span>Playwright Test Agents <span class="tag">추가 설치 없음</span></h3>
+    <h3><span class="rank">3</span>Playwright 테스트 자동 수정 (Test Agents) <span class="tag">추가 설치 없음</span></h3>
     <dl>
-      <dt>무엇인지</dt><dd>Playwright 에 들어 있는 <b>Claude용 역할 설정 파일 3개</b>. 지금 Claude가 손으로 하던 "화면 보기 → 계획 → 코드 → 깨지면 고치기"를 정해진 방식으로 나눠 맡긴다.</dd>
-      <dt>Planner</dt><dd>화면을 직접 열어 다니며 버튼·칸·탭을 확인하고, 테스트 계획을 md 로 쓴다. <br>예) "정기점검실행 화면을 보고 계획 써줘" → 조회·확정·점검값 입력 케이스 목록이 나옴. 지금 우리 메뉴 프롬프트·cases.json 을 만드는 단계와 같다.</dd>
-      <dt>Generator</dt><dd>그 계획을 보고 실제 화면에서 셀렉터를 확인하며 <code>.spec.ts</code> 코드를 만든다.</dd>
-      <dt>Healer</dt><dd>실패한 테스트를 다시 돌려 화면을 보고, <b>화면이 바뀐 탓</b>(버튼 이름·위치·iframe 이름 변경)이면 코드를 고쳐 다시 돌린다. <b>진짜 오류</b>로 보이면 고치지 않고 "건너뜀(fixme)" 표시만 한다.<br>예) 재배포 후 [확정] 버튼 이름이 [완료] 로 바뀌어 30건이 실패 → Healer 가 이름만 바꿔 통과시킴. 사람은 바뀐 부분만 확인.</dd>
-      <dt>우리에게</dt><dd>가장 쓸모 있는 것은 Healer. 배포마다 깨진 테스트를 고치는 시간이 줄어든다. Planner·Generator 는 지금 하는 방식과 비슷해서 효과가 작다.</dd>
-      <dt>필요한 것</dt><dd>Playwright 1.56 이상 (우리는 1.64) → 추가 설치 없음. <code>npx playwright init-agents --loop=claude</code> 한 번 실행하면 설정 파일이 생긴다.</dd>
-      <dt>주의</dt><dd class="warn">새 MCP 가 아니라 Playwright 기능. Healer 가 진짜 오류를 "화면 변경"으로 잘못 보고 고칠 수 있으므로, 고친 내용은 PR 에서 사람이 확인 후 반영한다.</dd>
+      <dt>한 줄로</dt><dd>화면이 바뀌어 깨진 테스트를 <b>Claude가 알아서 고쳐 주는</b> Playwright 기본 기능</dd>
+      <dt>예시</dt><dd>재배포로 [확정] 버튼 이름이 바뀌어 30건 실패 → 이름만 고쳐 다시 통과. 진짜 오류면 고치지 않고 표시만.</dd>
+      <dt>필요한 것</dt><dd>추가 설치 없음 (Playwright 1.64 사용 중)</dd>
+      <dt>주의</dt><dd class="warn">고친 내용은 사람이 PR 에서 확인</dd>
     </dl>
   </div>
 
