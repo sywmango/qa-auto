@@ -32,5 +32,4 @@ export const AD210: Screen = {
   tabs: [
     { tc: TC, title: 'Tab 설정', open: period, key: 'workCalPmRInsPeriodDetail', name: '일정 상세', shown: detailOpens },
   ],
-  header: { menuId: '358', open: period, pageTab: '목록(조건)' },
 };

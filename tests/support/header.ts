@@ -113,22 +113,22 @@ async function drag(page: Page, from: { x: number; y: number }, to: { x: number;
 
 const center = (b: { x: number; y: number; width: number; height: number }) => ({ x: b.x + Math.min(10, b.width / 2), y: b.y + b.height / 2 });
 
-/** 편집모드에서 필드(라벨)를 끌어 다른 필드 앞에 놓고, 자동 저장(saveField) 응답까지 기다림 */
+/** 편집모드에서 필드(라벨)를 끌어 다른 필드 앞에 놓음. saved: 자동 저장(saveField) 응답이 오면 true (최대 20초) */
 export async function dragField(page: Page, f: Frame, name: string, before: string) {
   const label = (n: string) => f.locator('div.field label, div.field_long label', { hasText: new RegExp(`^\\s*${escapeRe(n)}\\s*$`) }).first();
   const a = await label(name).boundingBox(), b = await label(before).boundingBox();
   if (!a || !b) throw new Error(`필드 라벨 없음: ${!a ? name : before}`);
   const saved = page.waitForResponse((r) => /persPrivUsrFieldList\/saveField/.test(r.url()), { timeout: 20_000 }).then(() => true).catch(() => false);
   await drag(page, center(a), { x: b.x + 3, y: b.y + b.height / 2 });
-  return saved;
+  return { saved };
 }
 
-/** 편집모드에서 위쪽 탭을 끌어 다른 탭 앞에 놓고, 자동 저장(persPrivUsrTab/save) 응답까지 기다림 */
+/** 편집모드에서 위쪽 탭을 끌어 다른 탭 앞에 놓음. saved: 자동 저장(persPrivUsrTab/save) 응답이 오면 true (최대 20초) */
 export async function dragTopTab(page: Page, name: string, before: string) {
   const tab = (n: string) => page.locator('ul.nav.nav-tabs > li', { hasText: new RegExp(`^\\s*${escapeRe(n)}\\s*$`) }).first();
   const a = await tab(name).boundingBox(), b = await tab(before).boundingBox();
   if (!a || !b) throw new Error(`탭 없음: ${!a ? name : before}`);
   const saved = page.waitForResponse((r) => /persPrivUsrTab\/save/.test(r.url()), { timeout: 20_000 }).then(() => true).catch(() => false);
   await drag(page, { x: a.x + a.width / 2, y: a.y + a.height / 2 }, { x: b.x + 5, y: b.y + b.height / 2 });
-  return saved;
+  return { saved };
 }

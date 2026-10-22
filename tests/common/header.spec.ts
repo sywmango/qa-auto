@@ -11,12 +11,12 @@ import { AD210 } from '../screens/ad210';
 import { AP591 } from '../screens/ap591';
 
 // 화면 상단 공통 기능 테스트: 즐겨찾기 / 업무그룹 / Tab설정(위쪽 탭) / 편집모드(위쪽 탭·검색 필드·상세 필드 끌어 옮기기)
-// 모든 메뉴에서 같은 부품이라, 동작은 대표 메뉴(화면 정의 header.deep)에서만 깊게 확인하고
-// 나머지 메뉴는 아이콘 4개가 있는지, Tab설정 목록과 위쪽 탭이 같은지만 확인합니다.
+// 모든 메뉴에서 같은 공통 코드(common.js)라, 동작은 대표 메뉴(화면 정의 header.deep) 하나에서만 확인합니다.
+// 메뉴마다 아이콘 4개가 보이는지는 전체 메뉴 점검(menu-all.spec.ts)에서 확인합니다.
 // 모두 사용자별 저장이고 누르면 바로 저장되므로, 바꾼 값은 각 테스트 끝에 원래대로 되돌립니다.
-// 실행할 메뉴: RUN_AD230 / RUN_AD210 / RUN_AP591 이 켜진 메뉴만
+// 실행: .\run-common.ps1 header
 
-const SCREENS: Screen[] = [AD230, AD210, AP591].filter((s) => s.header && process.env[`RUN_${s.code}`]);
+const SCREENS: Screen[] = [AD230, AD210, AP591].filter((s) => s.header);
 
 test.describe.configure({ timeout: 240_000 });
 
@@ -33,27 +33,8 @@ async function resetTopTabs(page: Page, h: HeaderTarget) {
   await closePopups(page);
 }
 
-function lightCases(s: Screen, h: HeaderTarget) {
-  test(`${s.code} 상단 공통: 즐겨찾기·업무그룹·Tab설정·편집모드 아이콘이 보인다.`, async ({ page }) => {
-    await h.open(page);
-    const icons = await iconsShown(page);
-    note(`아이콘: ${Object.entries(icons).map(([k, v]) => `${k} ${v ? '있음' : '없음'}`).join(', ')}`);
-    expect(icons).toEqual({ bookmark: true, workgroup: true, tabSetting: true, edit: true });
-  });
-
-  test(`${s.code} 상단 Tab설정: 설정 목록과 화면 위쪽 탭이 같다.`, async ({ page }) => {
-    await h.open(page);
-    const tabs = await topTabs(page);
-    const rows = await topTabSettingRows(await openTopTabSetting(page));
-    await closePopups(page);
-    const shownInSetting = rows.filter((r) => r.display === 'Y').sort((a, b) => Number(a.order) - Number(b.order)).map((r) => r.name);
-    note(`Tab설정: ${rows.map((r) => `${r.order} ${r.name}=${r.display}`).join(', ')}\n화면 위쪽 탭: ${tabs.join(', ')}`);
-    expect(tabs, 'Display Y 탭이 정렬값 순서대로 보여야 함').toEqual(shownInSetting);
-  });
-}
-
 function deepCases(s: Screen, h: HeaderTarget) {
-  test(`${s.code} 상단 즐겨찾기: 별을 누르면 즐겨찾기에 추가되고 다시 누르면 빠진다.`, async ({ page }) => {
+  test(`상단 공통 즐겨찾기: 별을 누르면 즐겨찾기에 추가되고 다시 누르면 빠진다. (대표 메뉴 ${s.name})`, async ({ page }) => {
     await h.open(page);
     const b0 = await isBookmarked(page), f0 = await inFavorites(page, h.menuId);
     const log = [`처음: 별 ${b0 ? '켜짐' : '꺼짐'}, 왼쪽 즐겨찾기에 ${f0 ? '있음' : '없음'}`];
@@ -77,7 +58,7 @@ function deepCases(s: Screen, h: HeaderTarget) {
     expect([b3, f3], '원래대로').toEqual([b0, f0]);
   });
 
-  test(`${s.code} 상단 업무그룹: 지금 화면을 업무그룹에 넣었다가 뺀다.`, async ({ page }) => {
+  test(`상단 공통 업무그룹: 지금 화면을 업무그룹에 넣었다가 뺀다. (대표 메뉴 ${s.name})`, async ({ page }) => {
     await h.open(page);
     const rows0 = await workgroupRows(await openWorkgroup(page));
     const g = rows0.find((r) => !r.checked);
@@ -110,7 +91,7 @@ function deepCases(s: Screen, h: HeaderTarget) {
     expect(rows2, '원래대로').toEqual(rows0);
   });
 
-  test(`${s.code} 상단 Tab설정: Edit 모드에서 바꿀 수 있는 칸을 확인한다.`, async ({ page }) => {
+  test(`상단 공통 Tab설정: Edit 모드에서 바꿀 수 있는 칸을 확인한다. (대표 메뉴 ${s.name})`, async ({ page }) => {
     await h.open(page);
     const f = await openTopTabSetting(page);
     const rows = await topTabSettingRows(f);
@@ -118,19 +99,19 @@ function deepCases(s: Screen, h: HeaderTarget) {
     await closePopups(page);
     const on = Object.entries(ed).filter(([k, v]) => v && k).map(([k]) => k);
     note(`위쪽 탭 Tab설정 행 체크 → Edit → 수정 가능한 칸: ${on.join(', ') || '없음'} (정렬값 ${ed['정렬값'] ? '수정 가능' : '읽기전용'}, 화면Display여부 ${ed['화면Display여부'] ? '수정 가능' : '읽기전용'})
-위쪽 탭 순서는 편집모드에서 끌어서 바꿈`);
-    // 화면 Setting 의 Tab 설정과 같은 기준 (정렬값·Display 여부 수정 가능) — 사용자 확인 필요
-    expect.soft(ed['정렬값'], '정렬값 수정 가능').toBe(true);
-    expect.soft(ed['화면Display여부'], '화면Display여부 수정 가능').toBe(true);
+사양: 순서는 편집모드로만 바꿈`);
+    // 사양 (사용자 확인 2026-10-22): 위쪽 탭 Tab설정은 Edit 로 바꿀 칸이 없음 = 정상 (순서는 편집모드에서 끌어서, 되돌리기는 [초기화])
+    expect.soft(ed['정렬값'], '정렬값 읽기전용 (사양)').toBeFalsy();
+    expect.soft(ed['화면Display여부'], '화면Display여부 읽기전용 (사양)').toBeFalsy();
   });
 
-  test(`${s.code} 상단 Tab설정: 위쪽 탭 순서를 바꾼 뒤 [초기화]하면 기본 순서로 돌아온다.`, async ({ page }) => {
+  test(`상단 공통 Tab설정: 위쪽 탭 순서를 바꾼 뒤 [초기화]하면 기본 순서로 돌아온다. (대표 메뉴 ${s.name})`, async ({ page }) => {
     // Tab설정 팝업에서는 바꿀 수 없어 편집모드로 순서를 바꾼 뒤 [초기화] 확인
     const t = h.tab!;
     await h.open(page);
     const before = await topTabs(page);
     await setEditMode(page, true);
-    await dragTopTab(page, t.name, t.before);
+    await (await dragTopTab(page, t.name, t.before)).saved;
     await setEditMode(page, false);
     await h.open(page);
     const moved = await topTabs(page);
@@ -142,7 +123,7 @@ function deepCases(s: Screen, h: HeaderTarget) {
     expect(after, '초기화하면 기본 순서').toEqual(before);
   });
 
-  test(`${s.code} 상단 편집모드: 자물쇠를 누르면 편집모드가 켜지고 다시 누르면 꺼진다.`, async ({ page }) => {
+  test(`상단 공통 편집모드: 자물쇠를 누르면 편집모드가 켜지고 다시 누르면 꺼진다. (대표 메뉴 ${s.name})`, async ({ page }) => {
     const f = await h.open(page);
     const on = await setEditMode(page, true);
     const st1 = await isEditMode(page), cls1 = await f.evaluate(() => document.body.classList.contains('usr_field_edit'));
@@ -152,14 +133,14 @@ function deepCases(s: Screen, h: HeaderTarget) {
     expect([st1, cls1, st2, cls2]).toEqual([true, true, false, false]);
   });
 
-  if (h.tab) test(`${s.code} 상단 편집모드: 위쪽 탭 '${h.tab.name}' 을(를) 끌어 '${h.tab.before}' 앞으로 옮긴다.`, async ({ page }) => {
+  if (h.tab) test(`상단 공통 편집모드: 위쪽 탭 '${h.tab.name}' 을(를) 끌어 '${h.tab.before}' 앞으로 옮긴다. (대표 메뉴 ${s.name})`, async ({ page }) => {
     const { name, before: target } = h.tab!;
     await h.open(page);
     const before = await topTabs(page);
     const log: string[] = [];
     try {
       await setEditMode(page, true);
-      const saved = await dragTopTab(page, name, target);
+      const saved = await (await dragTopTab(page, name, target)).saved;
       const moved = await topTabs(page);
       await setEditMode(page, false);
       await h.open(page);
@@ -178,14 +159,14 @@ function deepCases(s: Screen, h: HeaderTarget) {
     expect(after, '원래 순서').toEqual(before);
   });
 
-  if (h.field) test(`${s.code} 상단 편집모드: 검색 필드 '${h.field.name}' 을(를) 끌어 '${h.field.before}' 앞으로 옮긴다.`, async ({ page }) => {
+  if (h.field) test(`상단 공통 편집모드: 검색 필드 '${h.field.name}' 을(를) 끌어 '${h.field.before}' 앞으로 옮긴다. (대표 메뉴 ${s.name})`, async ({ page }) => {
     const { name, before: target } = h.field!;
     let f = await h.open(page);
     const before = await labels(f);
     const log: string[] = [];
     try {
       await setEditMode(page, true);
-      const saved = await dragField(page, f, name, target);
+      const saved = await (await dragField(page, f, name, target)).saved;
       const moved = await labels(f);
       await setEditMode(page, false);
       const reopened = await labels(await h.open(page));
@@ -204,14 +185,14 @@ function deepCases(s: Screen, h: HeaderTarget) {
     expect(after, '원래 순서').toEqual(before);
   });
 
-  if (h.detail) test(`${s.code} 상단 편집모드: 상세 필드 '${h.detail.name}' 을(를) 끌어 '${h.detail.before}' 앞으로 옮긴다.`, async ({ page }) => {
+  if (h.detail) test(`상단 공통 편집모드: 상세 필드 '${h.detail.name}' 을(를) 끌어 '${h.detail.before}' 앞으로 옮긴다. (대표 메뉴 ${s.name})`, async ({ page }) => {
     const { open, name, before: target } = h.detail!;
     let d = await open(page);
     const before = await labels(d);
     const log: string[] = [];
     try {
       await setEditMode(page, true);
-      const saved = await dragField(page, d, name, target);
+      const saved = await (await dragField(page, d, name, target)).saved;
       const moved = await labels(d);
       await setEditMode(page, false);
       const reopened = await labels(await open(page));
@@ -230,12 +211,36 @@ function deepCases(s: Screen, h: HeaderTarget) {
     expect(after, '원래 순서').toEqual(before);
   });
 
-  if (h.field) test(`${s.code} 상단 편집모드: 잠금(편집모드 꺼짐) 상태에서는 필드를 끌어도 바뀌지 않는다.`, async ({ page }) => {
+  if (h.field) test(`상단 공통 편집모드: 필드를 놓고 바로 편집모드를 꺼도 옮긴 순서가 저장된다. (대표 메뉴 ${s.name})`, async ({ page }) => {
+    // 오류 (사용자 확인 2026-10-22, 추가 확인 예정): 놓고 3초 뒤 자동 저장이라, 그 전에 편집모드를 끄면 저장되지 않음
+    const { name, before: target } = h.field!;
+    let f = await h.open(page);
+    const before = await labels(f);
+    let reopened: string[] = [];
+    try {
+      await setEditMode(page, true);
+      const { saved } = await dragField(page, f, name, target); // 저장 응답을 기다리지 않고 바로 끔
+      const moved = await labels(f);
+      await setEditMode(page, false);
+      const savedAnyway = await saved;
+      reopened = await labels(await h.open(page));
+      note(`편집모드에서 '${name}' 끌기 → ${moved.join(', ')} → 1초 안에 자물쇠로 편집모드 끔 (저장 요청 ${savedAnyway ? '있음' : '없음'}) → 다시 열기 ${rightBefore(reopened, name, target) ? '옮긴 순서 유지' : `원래 순서로 돌아감: ${reopened.join(', ')}`}`);
+      if (!rightBefore(reopened, name, target)) await page.screenshot({ path: 'playwright/.data/evidence/header-editmode-quickoff.png' });
+    } finally {
+      await setEditMode(page, false).catch(() => {});
+      if (!same(reopened, before)) { await resetSetting(page, await openSetting(page, await h.open(page), 'search')); await closePopups(page); }
+    }
+    f = await h.open(page);
+    expect(await labels(f), '되돌림').toEqual(before);
+    expect(rightBefore(reopened, name, target), '편집모드를 바로 꺼도 옮긴 순서가 저장되어야 함').toBe(true);
+  });
+
+  if (h.field) test(`상단 공통 편집모드: 잠금(편집모드 꺼짐) 상태에서는 필드를 끌어도 바뀌지 않는다. (대표 메뉴 ${s.name})`, async ({ page }) => {
     const { name, before: target } = h.field!;
     let f = await h.open(page);
     const before = await labels(f);
     expect(await isEditMode(page)).toBe(false);
-    const saved = await dragField(page, f, name, target);
+    const saved = await (await dragField(page, f, name, target)).saved;
     await settle(page, 1000);
     const moved = await labels(f);
     f = await h.open(page);
@@ -246,9 +251,7 @@ function deepCases(s: Screen, h: HeaderTarget) {
   });
 }
 
-for (const s of SCREENS) {
-  test.describe(`${s.code} ${s.name} 상단 공통 기능`, () => {
-    lightCases(s, s.header!);
-    if (s.header!.deep) deepCases(s, s.header!);
-  });
+// 동작은 공통 코드라 대표 메뉴 하나에서만 확인 (메뉴마다 아이콘이 보이는지는 menu-all.spec.ts 에서)
+for (const s of SCREENS.filter((x) => x.header!.deep)) {
+  test.describe('상단 공통 기능', () => deepCases(s, s.header!));
 }
