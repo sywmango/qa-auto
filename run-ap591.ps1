@@ -7,7 +7,7 @@
 #   .\run-ap591.ps1 report               이미 돌린 결과로 엑셀·보고서만 다시
 #
 # 단계: view(조회) setting(Setting 상세, 바꾼 값은 되돌림) work(점검작업 수정·점검값·Edit·첨부·Linked·확정)
-#       header(상단 공통 기능, 기본 단계에는 없음: .un-xxx.ps1 header)
+#       header(상단 공통 기능, 기본 단계에는 없음: .\run-ap591.ps1 header)
 #       evidence(오류 캡처) report(엑셀·보고서)
 # 주의: work 는 [sychoi] 주기 8007 / 설비 100302AG13 의 점검작업을 고치고, 오늘·어제 작업이 없으면
 #       정기점검계획에서 일정을 추가·확정해서 만든 뒤 확정(작업완료)합니다. 완료한 작업은 되돌릴 수 없습니다.
