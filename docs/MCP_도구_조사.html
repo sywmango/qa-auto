@@ -63,36 +63,11 @@
     </dl>
   </div>
 
-  <div class="card">
-    <h3><span class="rank">3</span>Playwright 테스트 자동 수정 (Test Agents) <span class="tag">확인 불필요 · 바로 적용</span></h3>
-    <dl>
-      <dt>한 줄로</dt><dd>화면이 바뀌어 깨진 테스트를 <b>Claude가 알아서 고쳐 주는</b> Playwright 기본 기능</dd>
-      <dt>예시</dt><dd>재배포로 [확정] 버튼 이름이 바뀌어 30건 실패 → 이름만 고쳐 다시 통과. 진짜 오류면 고치지 않고 표시만.</dd>
-      <dt>필요한 것</dt><dd>Playwright 는 이미 설치됨. 처음 한 번 <code>npx playwright init-agents</code> 로 설정 파일만 만들면 됨 (1분)</dd>
-      <dt>적용 방법</dt><dd>이후 테스트가 실패하면 Claude가 이 방식으로 고치고, PR 에 "화면 변경으로 고친 부분"을 따로 표시</dd>
-      <dt>주의</dt><dd class="warn">고친 내용은 사람이 PR 에서 확인</dd>
-    </dl>
-    <h4 class="mini">테스트 코드가 화면에서 버튼·칸을 찾는 방법</h4>
-    <table class="mini">
-      <tr><th>대상</th><th>찾는 방법</th><th>이유</th><th>잘 바뀌나</th></tr>
-      <tr><td>버튼 (생성·삭제·저장·Excel 등)</td><td>지금은 화면 글자 (예: [삭제]) → <b>고유 class 로 바꿀 수 있음</b> (예: b_delete)</td><td>2026-10-23 정기점검주기 화면 확인: 버튼마다 고유 class 가 있음 (생성 b_create, 삭제 b_delete, 저장 b_save, Excel b_excel, 상세보기 b_open). 처음 녹화한 방식이 글자였음</td><td>class 는 거의 안 바뀜. 글자는 바뀔 수 있음</td></tr>
-      <tr><td>탭</td><td>화면 글자 (예: 목록(조건))</td><td>모든 탭이 같은 class(tb_menu) 를 씀 → 글자로만 구분</td><td>배포 때 바뀔 수 있음 → <b>Healer 대상</b></td></tr>
-      <tr><td>입력칸</td><td>칸 ID (예: maEqMstrDetailDTO.itemNo)</td><td>Setting 메타 필드ID 와 같아 고정. 라벨은 Setting 에서 바뀔 수 있음</td><td>거의 안 바뀜</td></tr>
-      <tr><td>아이콘 버튼</td><td>고유 class (예: 돋보기 b_search, 닫기 b_close)</td><td>글자가 없음</td><td>거의 안 바뀜</td></tr>
-    </table>
-    <p class="mini-note">"몇 번째 버튼" 같은 순서로는 찾지 않는다. 숨은 버튼까지 세어져 엉뚱한 버튼을 누른 적이 있음 (삭제 버튼).</p>
-
-    <h4 class="mini">Healer 가 고치는 것 / 고치지 않는 것</h4>
-    <table class="mini">
-      <tr><th>고침 (테스트 코드 문제)</th><th>고치지 않고 오류로 표시 (프로그램 문제)</th></tr>
-      <tr><td>탭·버튼 글자가 바뀜 ([확정] → [완료])<br>화면 틀(iframe) 이름·칸 ID 가 바뀜<br>버튼·칸 위치나 순서가 바뀜</td><td>버튼·칸이 없어짐<br>저장이 안 되거나 값이 다르게 나옴<br>날짜·건수가 기대와 다름<br>에러 메시지가 뜸</td></tr>
-    </table>
-    <p class="mini-note">버튼 글자가 바뀐 경우는 코드를 고치되, PR 에 "바뀐 이름" 목록을 따로 적어 사양인지 오류(오타 등)인지 확인받는다.</p>
-  </div>
 
   <h2>지금은 필요 없는 것</h2>
   <table>
     <tr><th>도구</th><th>이유</th></tr>
+    <tr><td>Playwright Test Agents (Healer: 깨진 테스트 자동 수정)</td><td>추가 설치는 없지만 효과가 작음. 버튼은 고유 class(b_create, b_delete 등)가 있어 깨질 일이 적고, 남는 것(탭·그리드 칼럼 이름 변경)은 드물어 직접 고쳐도 충분</td></tr>
     <tr><td>Excel MCP</td><td><code>scripts/write-results.py</code> 로 UT 엑셀 작성이 이미 됨. 추가 효과 작음</td></tr>
     <tr><td>모바일 (Appium MCP, mobile-mcp)</td><td>지금은 웹 QA 단계. 모바일 테스트를 시작할 때 다시 검토</td></tr>
     <tr><td>GitHub MCP</td><td>이 PC 의 <code>gh</code> 로 PR·머지 이미 됨</td></tr>
