@@ -75,16 +75,17 @@
     <h4 class="mini">테스트 코드가 화면에서 버튼·칸을 찾는 방법</h4>
     <table class="mini">
       <tr><th>대상</th><th>찾는 방법</th><th>이유</th><th>잘 바뀌나</th></tr>
-      <tr><td>버튼·탭</td><td>화면 글자 (예: [OK], [삭제], 목록(조건))</td><td>DREAM 버튼에는 ID 가 없음</td><td>배포 때 바뀔 수 있음 → <b>Healer 대상</b></td></tr>
+      <tr><td>버튼 (생성·삭제·저장·Excel 등)</td><td>지금은 화면 글자 (예: [삭제]) → <b>고유 class 로 바꿀 수 있음</b> (예: b_delete)</td><td>2026-10-23 정기점검주기 화면 확인: 버튼마다 고유 class 가 있음 (생성 b_create, 삭제 b_delete, 저장 b_save, Excel b_excel, 상세보기 b_open). 처음 녹화한 방식이 글자였음</td><td>class 는 거의 안 바뀜. 글자는 바뀔 수 있음</td></tr>
+      <tr><td>탭</td><td>화면 글자 (예: 목록(조건))</td><td>모든 탭이 같은 class(tb_menu) 를 씀 → 글자로만 구분</td><td>배포 때 바뀔 수 있음 → <b>Healer 대상</b></td></tr>
       <tr><td>입력칸</td><td>칸 ID (예: maEqMstrDetailDTO.itemNo)</td><td>Setting 메타 필드ID 와 같아 고정. 라벨은 Setting 에서 바뀔 수 있음</td><td>거의 안 바뀜</td></tr>
-      <tr><td>아이콘 버튼</td><td>버튼 종류 (예: 돋보기 a.b_search)</td><td>글자도 ID 도 없음</td><td>거의 안 바뀜</td></tr>
+      <tr><td>아이콘 버튼</td><td>고유 class (예: 돋보기 b_search, 닫기 b_close)</td><td>글자가 없음</td><td>거의 안 바뀜</td></tr>
     </table>
     <p class="mini-note">"몇 번째 버튼" 같은 순서로는 찾지 않는다. 숨은 버튼까지 세어져 엉뚱한 버튼을 누른 적이 있음 (삭제 버튼).</p>
 
     <h4 class="mini">Healer 가 고치는 것 / 고치지 않는 것</h4>
     <table class="mini">
       <tr><th>고침 (테스트 코드 문제)</th><th>고치지 않고 오류로 표시 (프로그램 문제)</th></tr>
-      <tr><td>버튼 글자가 바뀜 ([확정] → [완료])<br>화면 틀(iframe) 이름·칸 ID 가 바뀜<br>버튼·칸 위치나 순서가 바뀜</td><td>버튼·칸이 없어짐<br>저장이 안 되거나 값이 다르게 나옴<br>날짜·건수가 기대와 다름<br>에러 메시지가 뜸</td></tr>
+      <tr><td>탭·버튼 글자가 바뀜 ([확정] → [완료])<br>화면 틀(iframe) 이름·칸 ID 가 바뀜<br>버튼·칸 위치나 순서가 바뀜</td><td>버튼·칸이 없어짐<br>저장이 안 되거나 값이 다르게 나옴<br>날짜·건수가 기대와 다름<br>에러 메시지가 뜸</td></tr>
     </table>
     <p class="mini-note">버튼 글자가 바뀐 경우는 코드를 고치되, PR 에 "바뀐 이름" 목록을 따로 적어 사양인지 오류(오타 등)인지 확인받는다.</p>
   </div>
