@@ -29,9 +29,36 @@ export async function waitFrame(page: Page, name: string | RegExp, timeout = 15_
   return found!;
 }
 
-/** 프레임 안에서 보이는 버튼(링크)을 정확한 글자로 클릭합니다. 예: '검색', '생성', '삭제' */
+/**
+ * 버튼 글자 → 고유 class (2026-10-23 정기점검주기·계획·실행 화면에서 확인).
+ * 글자는 배포 때 바뀔 수 있지만 class 는 거의 안 바뀌므로 class 로 먼저 찾습니다.
+ * Setting 은 검색·상세(b_colsetting)와 목록(b_setting)이 달라 setting.ts 에서 따로 다룹니다.
+ */
+export const BUTTON_CLASS: Record<string, string> = {
+  '검색': 'b_search',
+  '생성': 'b_create',
+  '삭제': 'b_delete',
+  '저장': 'b_save',
+  '확정': 'b_confirm',
+  '상세보기': 'b_open',
+  'Excel': 'b_excel',
+  'Edit': 'b_edit',
+  'Linked': 'b_linked',
+  '일정생성': 'b_createsched',
+  '표준항목선택': 'b_copy',
+  '접기': 'b_collapse',
+};
+
+/** 프레임 안의 보이는 버튼: 고유 class 가 있으면 class 로, 없거나 class 가 안 붙은 화면이면 정확한 글자로 찾습니다. */
+export function button(scope: Frame, text: string) {
+  const byText = scope.locator('a:visible', { hasText: new RegExp(`^\\s*${escapeRe(text)}\\s*$`) });
+  const cls = BUTTON_CLASS[text];
+  return (cls ? scope.locator(`a.${cls}:visible`).or(byText) : byText).first();
+}
+
+/** 프레임 안에서 보이는 버튼(링크)을 클릭합니다 (class 우선, 없으면 글자). 예: '검색', '생성', '삭제' */
 export async function clickButton(scope: Frame, text: string) {
-  const btn = scope.locator('a:visible', { hasText: new RegExp(`^\\s*${text}\\s*$`) }).first();
+  const btn = button(scope, text);
   // 닫힌 팝업의 투명 덮개(dhx_modal_cover)가 남아 클릭을 가로채는 경우가 있어, 막히면 강제로 클릭
   await btn.click({ timeout: 15_000 }).catch(() => btn.click({ force: true, timeout: 15_000 }));
 }
@@ -161,7 +188,7 @@ export async function pickInLov(page: Page, lov: Frame, text: string, searchLabe
     }
     const input = scope.locator('div.field', { has: scope.locator('label', { hasText: new RegExp(`^\\s*${escapeRe(searchLabel)}\\s*$`) }) }).locator('input:visible').first();
     await input.fill(text);
-    await scope.locator('a.b_search:visible, a:visible:has-text("검색")').first().click();
+    await button(scope, '검색').click();
     await settle(page, 1500);
   }
   await cellIn(scope).click({ timeout: 10_000 });

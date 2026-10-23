@@ -1,6 +1,6 @@
 import { test, Page, Frame } from '@playwright/test';
 import fs from 'fs';
-import { openMenu, settle, Grid, clickButton, lovContentFrame } from '../../support/dream';
+import { openMenu, settle, Grid, clickButton, button, lovContentFrame } from '../../support/dream';
 import { fillAllFields, listFields, saveForm, chooseInLov, closeLov } from '../../support/form';
 
 // EC_001~004 준비: 테스트용 가동달력·사용달력 (사용자 허락 2026-10-19). 이름 [sychoi]. 삭제하지 않음.
@@ -118,7 +118,7 @@ async function fillDaily(page: Page, o: { menu: string[]; dto: string; nameLabel
   for (const day of days) {
     if (have.includes(day)) continue;
     await page.keyboard.press('Escape');
-    await f.locator('a:visible', { hasText: /^\s*생성\s*$/ }).first().click({ force: true });
+    await button(f, '생성').click({ force: true });
     await settle(page, 1500);
     // 이전 입력이 남아 "수정중입니다. 취소하시겠습니까?" 가 뜨면 OK (이전 행은 이미 저장됨)
     const ok = page.getByText('OK', { exact: true }).filter({ visible: true }).first();
