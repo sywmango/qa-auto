@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP 도구 조사</title>
+<style>
+  :root { --bg:#f7f7f5; --card:#fff; --text:#1f2328; --muted:#656d76; --line:#e3e3e0; --accent:#2f6fde; --good:#1a7f37; --warn:#9a6700; --chip:#eef3fc; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#16181c; --card:#1f2228; --text:#e6e6e6; --muted:#9aa0a6; --line:#33373e; --accent:#6ea0ff; --good:#4ac26b; --warn:#d4a72c; --chip:#22314d; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.6 "Noto Sans KR","Malgun Gothic",sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .note { background: var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:28px; }
+  h2 { font-size: 19px; margin: 36px 0 12px; }
+  .card { background: var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-bottom:14px; }
+  .card h3 { margin:0 0 8px; font-size:17px; display:flex; align-items:center; gap:10px; }
+  .rank { display:inline-flex; width:28px; height:28px; border-radius:50%; background:var(--accent); color:#fff; align-items:center; justify-content:center; font-size:14px; flex:none; }
+  .tag { font-size:12px; padding:2px 8px; border-radius:20px; background:var(--chip); color:var(--accent); font-weight:600; }
+  dl { display:grid; grid-template-columns: 90px 1fr; gap:6px 12px; margin:0; }
+  dt { color:var(--muted); font-weight:600; }
+  dd { margin:0; }
+  .warn { color: var(--warn); }
+  table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { background: var(--chip); font-size:14px; }
+  tr:last-child td { border-bottom:none; }
+  ol.ask li { margin-bottom:8px; }
+  code { background:var(--chip); padding:1px 5px; border-radius:4px; font-size:13px; }
+  .src a { color: var(--accent); word-break: break-all; }
+  .src li { margin-bottom:4px; color: var(--muted); }
+  h4.mini { font-size:14px; margin:16px 0 6px; }
+  table.mini { font-size:13.5px; }
+  .mini-note { color:var(--muted); font-size:13px; margin:6px 0 0; }
+  @media (max-width: 600px) { dl { grid-template-columns: 1fr; } dt { margin-top:6px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Playwright 외 MCP 도구 조사</h1>
+  <p class="sub">2026-10-23 · Claude 웹 조사 (설치·실행은 아직 안 해 봄)</p>
+
+  <div class="note"><b>MCP</b> = Claude가 바깥 도구(브라우저, DB, 파일 등)를 직접 쓰게 해 주는 연결 장치. 지금은 Playwright(브라우저 조작)만 쓰고 있다.</div>
+
+  <h2>추천 순서</h2>
+
+  <div class="card">
+    <h3><span class="rank">1</span>Chrome DevTools MCP <span class="tag">Google 공식 · 바로 가능</span></h3>
+    <dl>
+      <dt>도움되는 점</dt><dd>화면을 열 때 콘솔 에러, 실패한 네트워크 요청, 느린 화면을 Claude가 직접 확인. 메뉴 순회 스모크(콘솔 에러 확인)와 성능 확인에 바로 쓴다.</dd>
+      <dt>필요한 것</dt><dd>설정 한 줄 (<code>npx chrome-devtools-mcp</code>), Chrome</dd>
+      <dt>주의</dt><dd class="warn">기본으로 사용 통계·성능 데이터를 Google 로 보냄 → <b>우리에게 이득이 없어 끈다.</b> 사용 통계는 Google 이 도구를 개선하는 데만 쓰이고, 성능(CrUX)은 공개 사이트의 실제 사용자 속도를 가져오는 기능이라 회사 IP 전용 QA 서버는 데이터가 없다. 켜 두면 QA 서버 주소만 Google 로 나간다. <code>--no-performance-crux</code> 와 사용 통계 끄는 옵션(설치 때 README 확인)으로 끈다.</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h3><span class="rank">2</span>DB 조회 MCP (읽기 전용) <span class="tag">효과 가장 큼 · 결정 필요</span></h3>
+    <dl>
+      <dt>도움되는 점</dt><dd>① Setting 메타 테이블을 읽어 화면 정의 자동 생성<br>② 저장 후 DB 값 확인 (테이블.컬럼)<br>③ 기대 날짜 계산용 달력·계획 데이터 조회</dd>
+      <dt>필요한 것</dt><dd>DREAM DB 종류(Oracle / MSSQL 등) 확인, <b>SELECT 권한만 있는 QA DB 계정</b></dd>
+      <dt>주의</dt><dd class="warn">운영 DB 금지, QA DB 만. 계정 발급은 DBA·본부장 결정 필요.</dd>
+    </dl>
+  </div>
+
+
+  <h2>지금은 필요 없는 것</h2>
+  <table>
+    <tr><th>도구</th><th>이유</th></tr>
+    <tr><td>Playwright Test Agents (Healer: 깨진 테스트 자동 수정)</td><td>추가 설치는 없지만 효과가 작음. 버튼은 고유 class(b_create, b_delete 등)가 있어 깨질 일이 적고, 남는 것(탭·그리드 칼럼 이름 변경)은 드물어 직접 고쳐도 충분</td></tr>
+    <tr><td>Excel MCP</td><td><code>scripts/write-results.py</code> 로 UT 엑셀 작성이 이미 됨. 추가 효과 작음</td></tr>
+    <tr><td>모바일 (Appium MCP, mobile-mcp)</td><td>지금은 웹 QA 단계. 모바일 테스트를 시작할 때 다시 검토</td></tr>
+    <tr><td>GitHub MCP</td><td>이 PC 의 <code>gh</code> 로 PR·머지 이미 됨</td></tr>
+    <tr><td>테스트 관리 도구 MCP (QA Sphere, TestRail 등)</td><td>회사가 엑셀 UT 양식을 씀. 도입하면 다시 검토</td></tr>
+    <tr><td>Selenium MCP</td><td>이미 Playwright 사용</td></tr>
+    <tr><td>BrowserStack 등 클라우드 브라우저</td><td>QA 서버가 회사 IP 만 허용해 접속 불가, 유료</td></tr>
+  </table>
+
+  <h2>정해야 할 것 (본부장님 확인)</h2>
+  <ol class="ask">
+    <li>Chrome DevTools MCP 를 먼저 붙여 볼지 (위험 낮음, 바로 가능)</li>
+    <li>QA DB 읽기 전용 계정을 받을 수 있는지, DB 종류가 무엇인지 (가장 효과 큼)</li>
+    <li>회사 이슈 관리 도구(Jira, Redmine 등)가 있으면 오류를 바로 등록하는 MCP 도 가능</li>
+  </ol>
+
+  <h2>출처</h2>
+  <ul class="src">
+    <li>Chrome DevTools MCP: <a href="https://developer.chrome.com/docs/devtools">developer.chrome.com</a>, <a href="https://www.debugbear.com/blog/chrome-devtools-mcp-performance-debugging">debugbear.com</a></li>
+    <li>DB MCP: <a href="https://glama.ai/mcp/servers/vj4pni74ex">Oracle (glama.ai)</a>, <a href="https://mcpservers.org/servers/JexinSam/mssql_mcp_server">MSSQL (mcpservers.org)</a></li>
+    <li>Playwright Test Agents: <a href="https://bug0.com/blog/playwright-test-agents">bug0.com</a>, <a href="https://testdino.com/blog/playwright-ai-ecosystem-2026">testdino.com</a></li>
+    <li>QA MCP 정리: <a href="https://quashbugs.com/blog/best-mcp-servers-for-qa-testing">quashbugs.com</a></li>
+  </ul>
+</main>
+</body>
+</html>

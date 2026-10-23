@@ -1,5 +1,5 @@
 import { test, expect, Page, Frame } from '@playwright/test';
-import { settle } from '../support/dream';
+import { settle, button } from '../support/dream';
 import {
   openSetting, openTabSetting, openColSetting, checkAndClick, resetSetting, editSettingRow, editableColumns, settingRowTexts,
   settingRow, settingRows, rowByName, closePopups, listLength, setListLength, stepListLength, gridHeaders, headerWidth, gridBodyHeight, searchLabels, TD,
@@ -271,7 +271,7 @@ function listCases(t: ListTarget) {
     // 칼럼 상세보기에 색상 설정이 있는지
     const r = await findRow(sf, t.col, t.id);
     await settingRow(sf, r.key).locator('img[src*="item_chk"]').first().click().catch(() => {});
-    await sf.locator('a:visible', { hasText: /^\s*상세보기\s*$/ }).first().click().catch(() => {});
+    await button(sf, '상세보기').click().catch(() => {});
     await settle(page, 2500);
     const texts: string[] = [];
     for (const fr of page.frames()) {

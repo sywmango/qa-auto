@@ -1,5 +1,5 @@
 import { Page, Frame } from '@playwright/test';
-import { settle, escapeRe, lovContentFrame, pickInLov } from './dream';
+import { settle, escapeRe, lovContentFrame, pickInLov, button } from './dream';
 
 // Setting(사용자정의) 팝업 공통 부품. 메뉴가 달라도 같은 화면이라 그대로 씁니다.
 // - 검색 영역 Setting: "사용자정의" 팝업 (Field 설정 / Tab 설정)
@@ -18,8 +18,15 @@ function frameNamed(page: Page, name: string) {
 }
 
 function btn(f: Frame, text: string | RegExp) {
-  const re = typeof text === 'string' ? new RegExp(`^\\s*${escapeRe(text)}\\s*$`) : text;
-  return f.locator('a:visible', { hasText: re }).first();
+  if (typeof text === 'string') return button(f, text);
+  return f.locator('a:visible', { hasText: text }).first();
+}
+
+/** 화면의 Setting 버튼: 검색·상세 영역은 b_colsetting, 목록 영역은 b_setting. class 가 없는 화면은 예전처럼 순서로 */
+async function settingButton(f: Frame, kind: 'field' | 'list', fallbackNth: number) {
+  const byClass = f.locator(`a.${kind === 'field' ? 'b_colsetting' : 'b_setting'}:visible`).first();
+  if (await byClass.count().catch(() => 0)) return byClass;
+  return f.locator('a:visible', { hasText: /^\s*Setting\s*$/ }).nth(fallbackNth);
 }
 
 async function okIfShown(page: Page) {
@@ -40,9 +47,9 @@ async function checkRow(f: Frame, key: string) {
   await settingRow(f, key).locator('img[src*="item_chk"]').click();
 }
 
-/** 화면의 Setting 버튼을 눌러 팝업을 엽니다. 검색 영역이 첫 번째, 목록 영역이 두 번째 Setting 입니다. */
+/** 화면의 Setting 버튼을 눌러 팝업을 엽니다. 검색·상세 영역은 b_colsetting, 목록 영역은 b_setting 버튼입니다. */
 export async function openSetting(page: Page, screen: Frame, where: 'search' | 'list') {
-  await screen.locator('a:visible', { hasText: /^\s*Setting\s*$/ }).nth(where === 'search' ? 0 : 1).click();
+  await (await settingButton(screen, where === 'search' ? 'field' : 'list', where === 'search' ? 0 : 1)).click();
   await settle(page, 2500);
   if (where === 'list') return frameNamed(page, F_COL);
   return frameNamed(page, F_FIELD);
@@ -196,7 +203,7 @@ export async function editableColumns(page: Page, f: Frame, key: string) {
 /** 점검항목 목록처럼 Setting 이 하나뿐인 목록: 첫 Setting → 칼럼 설정(사용자정의Grid) 팝업 */
 export async function openColSetting(page: Page, f: Frame) {
   await closePopups(page);
-  await f.locator('a:visible', { hasText: /^\s*Setting\s*$/ }).first().click();
+  await (await settingButton(f, 'list', 0)).click();
   await settle(page, 2500);
   let found: Frame | undefined;
   for (let i = 0; i < 30 && !found; i++) {
