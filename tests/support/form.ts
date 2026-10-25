@@ -1,5 +1,5 @@
 import { Page, Frame, Locator, expect } from '@playwright/test';
-import { settle, lovContentFrame, clickButton, escapeRe, expandTreeUntil } from './dream';
+import { settle, lovContentFrame, clickButton, button, escapeRe, expandTreeUntil } from './dream';
 
 // 상세 입력폼 공통 부품
 // - fillAllFields: 화면에 보이는 수정 가능한 칸을 모두 채움 (읽기전용은 건너뜀)
@@ -217,11 +217,11 @@ export async function saveForm(page: Page, scope: Frame) {
   // 상세 화면을 아래로 내리면 버튼 줄이 상위 화면의 고정 머리줄로 옮겨 가고 원래 자리 버튼은 숨겨집니다.
   // 상위 화면의 버튼은 다른 폼(예: 정기점검주기 본문) 것일 수 있으므로 쓰지 않고,
   // 이 프레임의 저장 버튼이 숨겨져 있으면 그 버튼을 직접 눌러(click 이벤트) 이 폼을 저장합니다.
-  const visibleSave = await scope.locator('a:visible', { hasText: /^\s*저장\s*$/ }).count().catch(() => 0);
+  const visibleSave = await button(scope, '저장').count().catch(() => 0);
   if (visibleSave) await clickButton(scope, '저장');
   else {
     const done = await scope.evaluate(() => {
-      const a = [...document.querySelectorAll('a')].find((x) => (x.textContent || '').trim() === '저장');
+      const a = document.querySelector('a.b_save') || [...document.querySelectorAll('a')].find((x) => (x.textContent || '').trim() === '저장');
       if (a) (a as HTMLElement).click();
       return !!a;
     });
@@ -229,7 +229,7 @@ export async function saveForm(page: Page, scope: Frame) {
     if (!done) {
       // 버튼 줄 자체가 상위 프레임 고정 머리줄로 옮겨 간 경우 (정기점검주기 본문에서 확인됨)
       let p = scope.parentFrame();
-      while (p && !(await p.locator('a:visible', { hasText: /^\s*저장\s*$/ }).count().catch(() => 0))) p = p.parentFrame();
+      while (p && !(await button(p, '저장').count().catch(() => 0))) p = p.parentFrame();
       if (!p) throw new Error('저장 버튼을 찾지 못함');
       dbg(`상위 프레임 "${p.name() || '(메인)'}" 의 저장 버튼 사용`);
       await clickButton(p, '저장');

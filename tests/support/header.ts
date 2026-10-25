@@ -1,5 +1,5 @@
 import { Page, Frame } from '@playwright/test';
-import { settle, escapeRe } from './dream';
+import { settle, escapeRe, button } from './dream';
 import { closePopups, settingRows } from './setting';
 
 // 화면 상단 공통 기능 (모든 메뉴에서 같은 자리, 같은 동작)
@@ -64,7 +64,7 @@ export async function toggleWorkgroup(page: Page, f: Frame, no: string) {
   const row = f.locator('div.gridbox .objbox tr', { has: f.locator('td', { hasText: new RegExp(`^\\s*${escapeRe(no)}\\s*$`) }) }).first();
   await row.locator('img[src*="item_chk"]').first().click();
   await page.waitForTimeout(300);
-  await f.locator('a:visible', { hasText: /^\s*저장\s*$/ }).first().click();
+  await button(f, '저장').click();
   await settle(page, 1500);
   const ok = page.getByText('OK', { exact: true }).filter({ visible: true }).first();
   if (await ok.isVisible().catch(() => false)) { await ok.click(); await settle(page, 1500); }
