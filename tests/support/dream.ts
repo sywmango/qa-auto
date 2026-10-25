@@ -47,6 +47,7 @@ export const BUTTON_CLASS: Record<string, string> = {
   '일정생성': 'b_createsched',
   '표준항목선택': 'b_copy',
   '접기': 'b_collapse',
+  '선택': 'b_select',
 };
 
 /** 프레임 안의 보이는 버튼: 고유 class 가 있으면 class 로, 없거나 class 가 안 붙은 화면이면 정확한 글자로 찾습니다. */
@@ -192,8 +193,14 @@ export async function pickInLov(page: Page, lov: Frame, text: string, searchLabe
     await settle(page, 1500);
   }
   await cellIn(scope).click({ timeout: 10_000 });
+  // 행을 고르자마자 [선택]을 누르면 화면이 선택을 아직 못 받아 팝업이 안내 없이 그대로 남는 경우가 있음 (2026-10-26 시스템코드 Lov)
+  await page.waitForTimeout(800);
   await clickButton(scope, '선택');
   await settle(page, 1000);
+  if (await button(scope, '선택').isVisible().catch(() => false)) {
+    await clickButton(scope, '선택');
+    await settle(page, 1000);
+  }
 }
 
 /** 트리 그리드(부서, 위치 등)에서 글자가 같은 노드의 + 를 눌러 펼칩니다. */
