@@ -10,3 +10,7 @@ node_modules/
 playwright/.auth/
 .env
 playwright/.data/
+# 사이트별 설정(.env.mssql 등)은 주소만 있으니 올림. 계정·비밀번호는 .env 에만 적는다
+.env.*
+!.env.example
+!.env.mssql

@@ -12,12 +12,14 @@ setup('로그인', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Password' }).fill(process.env.QA_USER_PW!);
   await page.getByRole('button', { name: 'Login' }).click();
 
-  // 접속할 시스템 선택 팝업
-  await page
-    .locator('iframe[name="popupIframe1"]')
-    .contentFrame()
-    .getByRole('cell', { name: process.env.QA_COMPANY! })
-    .dblclick();
+  // 접속할 시스템 선택 팝업 (QA_COMPANY 가 비어 있으면 고르는 화면이 없는 사이트 → 건너뜀. 예: mssql)
+  if (process.env.QA_COMPANY) {
+    await page
+      .locator('iframe[name="popupIframe1"]')
+      .contentFrame()
+      .getByRole('cell', { name: process.env.QA_COMPANY })
+      .dblclick();
+  }
 
   // 메인 화면이 떴는지 확인 (메뉴가 보이면 로그인 성공)
   await expect(page.getByText('개인설정')).toBeVisible();
