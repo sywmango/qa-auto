@@ -10,3 +10,5 @@ node_modules/
 playwright/.auth/
 .env
 playwright/.data/
+.env.*
+!.env.example

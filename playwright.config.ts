@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 
 // .env 파일에서 QA 주소와 계정 정보를 읽어옵니다.
+// QA_SITE 를 주면 .env.<QA_SITE> 를 먼저 읽고, 빠진 값은 .env 에서 채웁니다. (예: $env:QA_SITE="mssql" → .env.mssql)
+if (process.env.QA_SITE) dotenv.config({ path: path.resolve(__dirname, `.env.${process.env.QA_SITE}`) });
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 export default defineConfig({

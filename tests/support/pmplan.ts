@@ -44,7 +44,7 @@ export async function relogin(page: Page) {
   await page.getByRole('textbox', { name: 'User No' }).fill(process.env.QA_USER_ID!);
   await page.getByRole('textbox', { name: 'Password' }).fill(process.env.QA_USER_PW!);
   await page.getByRole('button', { name: 'Login' }).click();
-  await page.locator('iframe[name="popupIframe1"]').contentFrame().getByRole('cell', { name: process.env.QA_COMPANY! }).dblclick();
+  if (process.env.QA_COMPANY) await page.locator('iframe[name="popupIframe1"]').contentFrame().getByRole('cell', { name: process.env.QA_COMPANY }).dblclick();
   await expect(page.getByText('개인설정')).toBeVisible();
   if (process.env.QA_AUTH) await page.context().storageState({ path: process.env.QA_AUTH });
 }
