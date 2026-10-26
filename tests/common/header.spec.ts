@@ -124,17 +124,21 @@ function deepCases(s: Screen, h: HeaderTarget) {
     const name = `${PREFIX} 통합센터`;
     const no = await createGroup(page, name);
     let screen: Awaited<ReturnType<typeof groupScreen>> = [];
+    // 사이트마다 메뉴 구성이 달라(mssql 에는 Layout센터 없음) 왼쪽 메뉴에 있는 화면만 넣음
+    const present = await page.evaluate((names) => names.filter((n) => [...document.querySelectorAll('#mainMenu .submenu-item')]
+      .some((e) => (e.firstChild?.textContent || '').trim() === n)), WG_DASHBOARDS);
+    const missing = WG_DASHBOARDS.filter((n) => !present.includes(n));
     try {
-      await addPages(page, no, WG_DASHBOARDS);
+      await addPages(page, no, present);
       const pages = await groupPages(page, no);
       screen = await groupScreen(page, no);
-      if (screen.some((x) => x.blank) || screen.length < WG_DASHBOARDS.length) await page.screenshot({ path: 'playwright/.data/evidence/header-workgroup-blank.png' });
-      note(`업무그룹설정 '${name}'(${no}) 업무화면: ${pages.map((r) => `${r['메뉴명']}(${r['화면ID']})`).join(', ') || '없음'}\n왼쪽 업무그룹 화면 탭: ${screen.map((x) => `${x.tab} ${x.blank ? '빈칸' : `열림(요소 ${x.els})`}`).join(', ') || '탭 없음'}`);
+      if (screen.some((x) => x.blank) || screen.length < present.length) await page.screenshot({ path: 'playwright/.data/evidence/header-workgroup-blank.png' });
+      note(`업무그룹설정 '${name}'(${no}) 업무화면: ${pages.map((r) => `${r['메뉴명']}(${r['화면ID']})`).join(', ') || '없음'}\n왼쪽 업무그룹 화면 탭: ${screen.map((x) => `${x.tab} ${x.blank ? '빈칸' : `열림(요소 ${x.els})`}`).join(', ') || '탭 없음'}${missing.length ? `\n이 사이트 메뉴에 없음: ${missing.join(', ')}` : ''}`);
     } finally {
       await deleteGroup(page, no);
     }
     expect((await groupList(page)).some((r) => r['업무그룹#'] === no), '지운 업무그룹').toBe(false);
-    for (const n of WG_DASHBOARDS) expect.soft(screen.some((x) => x.tab.includes(n) && !x.blank), `업무그룹 화면에서 '${n}' 이 열림`).toBe(true);
+    for (const n of present) expect.soft(screen.some((x) => x.tab.includes(n) && !x.blank), `업무그룹 화면에서 '${n}' 이 열림`).toBe(true);
   });
 
   test(`상단 공통 Tab설정: Edit 모드에서 바꿀 수 있는 칸을 확인한다. (대표 메뉴 ${s.name})`, async ({ page }) => {

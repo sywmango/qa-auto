@@ -1,4 +1,5 @@
 import { Page, Frame, expect } from '@playwright/test';
+import { allMenus } from '../menu-all.data';
 
 // DREAM 화면 공통 부품
 // - 메뉴 열기, 프레임 찾기, 버튼 클릭, 그리드 읽기, Lov(돋보기) 팝업 사용
@@ -11,12 +12,46 @@ export async function settle(page: Page, ms = 800) {
   await page.waitForTimeout(ms);
 }
 
+// 메뉴 번호 → 이름 (oracle 사이트 기준, menu-all.data.ts 에서). 사이트(DB)마다 메뉴 번호가 달라서(mssql 에서 확인)
+// 번호의 메뉴 이름이 다르면 같은 위치에서 이름으로 찾습니다.
+const MENU_NAMES: Record<string, string> = { '292': '개인설정', '1398': '업무그룹설정' };
+for (const m of allMenus) {
+  MENU_NAMES[m.topId] = m.top;
+  if (m.subId && m.sub) MENU_NAMES[m.subId] = m.sub;
+  MENU_NAMES[m.menuId] = m.menu;
+}
+
 /** 메인 화면에서 메뉴 번호를 차례로 클릭해 메뉴를 엽니다. 예: ['132', '372', '454'] */
 export async function openMenu(page: Page, ids: string[]) {
   await page.goto('/dream/index.do');
   await page.waitForLoadState('networkidle');
-  for (const id of ids) await page.locator(`[id="${id}"]`).click();
+  let prev = '';
+  for (const id of ids) {
+    const target = await menuIdOnSite(page, id, prev);
+    const el = page.locator(`[id="${target}"]`);
+    // 펼침 애니메이션 중이면 다른 메뉴가 클릭을 가로챌 수 있어, 막히면 메뉴 항목에 직접 클릭 이벤트를 보냄
+    await el.click({ timeout: 5_000 }).catch(() => el.dispatchEvent('click'));
+    prev = target;
+  }
   await settle(page, 1500);
+}
+
+/** 이 사이트에서 메뉴 번호 id 에 해당하는 항목의 번호. 이름이 같으면 그대로, 다르면 앞 메뉴(prev) 아래에서 같은 이름을 찾음 */
+async function menuIdOnSite(page: Page, id: string, prev: string) {
+  const name = MENU_NAMES[id];
+  if (!name) return id;
+  return page.evaluate(({ id, name, prev }) => {
+    const label = (e: Element) => ((e.firstChild?.textContent || e.textContent || '').trim());
+    const own = document.querySelector(`#mainMenu [id="${id}"]`);
+    if (own && label(own) === name) return id;
+    const root = (prev && document.querySelector(`#mainMenu [id="${prev}"]`)?.closest('.menu-item')) || document.querySelector('#mainMenu')!;
+    const after = prev ? document.querySelector(`#mainMenu [id="${prev}"]`) : null;
+    const cands = [...root.querySelectorAll<HTMLElement>('.menu-title[id], .submenu-item[id], .depth3-item[id]')]
+      .filter((e) => /^\d+$/.test(e.id) && !/FAVORITE|WORKGROUP/.test(e.className) && label(e) === name);
+    // 앞 메뉴보다 뒤에 있는 첫 항목 (같은 이름이 다른 묶음에도 있을 수 있음)
+    const pick = cands.find((e) => !after || (after.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING)) ?? cands[0];
+    return pick ? pick.id : id;
+  }, { id, name, prev });
 }
 
 /** 이름으로 프레임을 찾습니다. 나타날 때까지 기다립니다. */

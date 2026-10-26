@@ -1,5 +1,7 @@
 import { Page, Frame, expect } from '@playwright/test';
 import fs from 'fs';
+import path from 'path';
+import { PM_NO, EQ_NO, DATA_DIR } from './site';
 import { settle, clickButton, Grid, waitFrame } from './dream';
 import { put, dateAfter, saveForm } from './form';
 import { TAB as PLAN_TAB, openTab as openPlanTab, search as planSearch, loadAll as planLoadAll } from './pmplan';
@@ -11,11 +13,11 @@ import { PV, F_POINT, F_POINT_VALUE, searchCond, loadAll, clickRow, detailOf, fr
 //  - 앞날짜 작업발행 건: 정기점검계획 테스트(AD210)에서 확정해 둔 2026-12-18 (없으면 다른 앞날짜 작업발행 건)
 //  - 오늘·어제 작업발행 건: 없으면 정기점검계획에서 일정추가 → 일정확정으로 만듦
 
-export const PM = '8007';
-export const EQ = '100302AG13';
-export const STATE = 'playwright/.data/ap591-state.json';
+export const PM = PM_NO;
+export const EQ = EQ_NO;
+export const STATE = path.join(DATA_DIR, 'ap591-state.json');
 export const state: Record<string, string> = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : {};
-export const keep = (k: string, v: string) => { state[k] = v; fs.mkdirSync('playwright/.data', { recursive: true }); fs.writeFileSync(STATE, JSON.stringify(state, null, 1)); };
+export const keep = (k: string, v: string) => { state[k] = v; fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(STATE, JSON.stringify(state, null, 1)); };
 export { okAndMessage };
 
 /** 8007·이 설비의 점검작업 (목록(조건), 넓은 기간) */
@@ -46,7 +48,8 @@ export async function openWork(page: Page, date: string, status = '작업발행'
 export async function futureDate(page: Page) {
   if (state.future) return state.future;
   const { mine } = await myWorks(page);
-  const ad210 = fs.existsSync('playwright/.data/ad210-state.json') ? JSON.parse(fs.readFileSync('playwright/.data/ad210-state.json', 'utf8')) : {};
+  const ad210File = path.join(DATA_DIR, 'ad210-state.json');
+  const ad210 = fs.existsSync(ad210File) ? JSON.parse(fs.readFileSync(ad210File, 'utf8')) : {};
   const pick = mine.find((r) => r['점검일자'] === ad210.d4 && r['점검작업상태'] === '작업발행') ?? mine.find((r) => r['점검일자'] > dateAfter(7) && r['점검작업상태'] === '작업발행');
   expect(pick, '앞날짜 작업발행 점검작업').toBeTruthy();
   keep('future', pick!['점검일자']);

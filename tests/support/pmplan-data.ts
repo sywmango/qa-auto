@@ -1,5 +1,7 @@
 import { Page, Frame } from '@playwright/test';
 import fs from 'fs';
+import path from 'path';
+import { PM_NO, EQ_NO, DATA_DIR } from './site';
 import { settle, clickButton } from './dream';
 import { popupMessage, dateAfter } from './form';
 import { openTab, searchPeriod, loadAll } from './pmplan';
@@ -7,11 +9,11 @@ import { openTab, searchPeriod, loadAll } from './pmplan';
 // 정기점검계획 (AD210) 데이터를 바꾸는 케이스용 부품
 // 테스트 데이터: [sychoi] 주기 8007 의 설비 100302AG13 (High Speed Mixer(세종파마텍)) 에 일정을 추가해서 씀
 
-export const PM = '8007';
-export const EQ = '100302AG13';
-export const STATE = 'playwright/.data/ad210-state.json';
+export const PM = PM_NO;
+export const EQ = EQ_NO;
+export const STATE = path.join(DATA_DIR, 'ad210-state.json');
 export const state: Record<string, string> = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : {};
-export const keep = (k: string, v: string) => { state[k] = v; fs.mkdirSync('playwright/.data', { recursive: true }); fs.writeFileSync(STATE, JSON.stringify(state, null, 1)); };
+export const keep = (k: string, v: string) => { state[k] = v; fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(STATE, JSON.stringify(state, null, 1)); };
 
 /** 확인창(OK)이 뜨면 누르고, 그 뒤 안내 문구(확인 버튼 상자, 잠깐 뜨는 알림, 브라우저 alert)를 읽어 돌려줌 */
 export async function okAndMessage(page: Page) {
