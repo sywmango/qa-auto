@@ -16,6 +16,7 @@ DREAM CMMS(Dream4.1) QA 사이트 Playwright 자동 테스트 저장소. Claude�
 ## 2. 환경
 
 - 회사 PC `D:\qa-auto`, Windows PowerShell. QA 서버는 회사 IP만 접속 가능 → 모든 실행은 이 PC에서.
+- QA 사이트는 2곳: oracle `http://202.133.21.133:1220` (기본 `.env`), mssql `:1290` (`$env:QA_SITE="mssql"` → `.env.mssql`). 같은 계정. **테스트는 항상 두 사이트 모두** (사용자 지시 2026-10-26). 사이트마다 메뉴 번호·테스트 데이터 번호가 다르다 → 메뉴는 `openMenu`(번호가 다르면 이름으로), 데이터 번호는 `tests/support/site.ts`.
 - TypeScript, Playwright, Chromium만. 계정은 `.env` (`BASE_URL`, `QA_USER_ID`, `QA_USER_PW`, `QA_COMPANY`).
 - 저장소 https://github.com/sywmango/qa-auto (main). `gh` 사용 가능. tsc 없음 → 문법 확인은 `npx playwright test --list`.
 - 이 폴더는 여러 스레드가 같이 쓴다 → 커밋할 때 내가 만든 파일만 넣는다. 브랜치를 함부로 바꾸지 않는다.
@@ -45,6 +46,7 @@ DREAM CMMS(Dream4.1) QA 사이트 Playwright 자동 테스트 저장소. Claude�
 **산출물** (메뉴 프롬프트에 따로 없으면)
 - 회사 UT 양식 엑셀 `docs/<화면ID>/<화면ID>_UT_<메뉴이름>_v<n>.xlsx` — `scripts/write-results.py`
   - 양식에 없는 열·시트 추가 금지. 결과는 정상/오류만. 개선은 정상 + QA내용 앞 `[개선]`. 정상 행 QA내용은 비움.
+  - 두 사이트 결과를 한 행에 합친다: 한쪽이라도 오류면 오류. QA내용에 어느 사이트인지 앞에 적는다 (예: `[mssql] 저장 안 됨 …` / 두 곳 다면 `[oracle·mssql]`). 사이트 차이(메뉴 없음 등)도 같은 방식으로.
   - QA날짜는 날짜 값으로. 캡처 파일명은 "첨부파일" 칸.
 - 결과 보고서 PDF `docs/<화면ID>/report/<화면ID>_<메뉴이름>_테스트결과보고서_v<n>.pdf` — `scripts/make-report.js`. 정상/오류/개선, 오류마다 캡처.
 - 설명은 "조건 → 결과 → (오류면) 기대" 2~3줄.
@@ -53,6 +55,7 @@ DREAM CMMS(Dream4.1) QA 사이트 Playwright 자동 테스트 저장소. Claude�
 - 코드는 PR. 머지는 사용자가 "머지해줘"라고 할 때만.
 
 **진행**
+- 실행 순서: oracle → mssql. 결과·상태 파일은 사이트별로 따로 (`playwright\.data\<사이트>`, `run-common.ps1` 참고). 같은 계정이라 두 사이트도 동시에 돌리지 않는다.
 - 같은 계정으로 두 테스트를 동시에 돌리지 않는다 (세션이 끊김). 하나씩.
 - 긴 실행은 백그라운드로 돌리고 짧게 나눠 실행. 진행 상황은 한국시간(KST)으로 짧게.
 - QA 서버 `/dream/index.do` 404(재배포)면 30초마다 확인하고 이어서 한다. 묻지 않는다.

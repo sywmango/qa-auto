@@ -1,6 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { allMenus } from './menu-all.data';
 import { iconsShown, topTabs } from './support/header';
+import { openMenu } from './support/dream';
 
 // 전체 메뉴 점검 테스트
 // menu-all.data.ts의 모든 메뉴를 하나씩 열어서 아래를 확인합니다.
@@ -67,14 +68,9 @@ for (const m of allMenus) {
       await d.dismiss().catch(() => {});
     });
 
-    // 1) 메인 화면에서 시작
-    await page.goto('/dream/index.do');
-    await page.waitForLoadState('networkidle');
-
-    // 2) 대메뉴 → (중간 메뉴) → 메뉴 클릭 (같은 화면 안에 열림)
-    await page.locator(`[id="${m.topId}"]`).click();
-    if (m.subId) await page.locator(`[id="${m.subId}"]`).click();
-    await page.locator(`[id="${m.menuId}"]`).click();
+    // 1) 메인 화면에서 대메뉴 → (중간 메뉴) → 메뉴 클릭 (같은 화면 안에 열림)
+    //    사이트마다 메뉴 번호가 달라 번호의 이름이 다르면 이름으로 찾음 (openMenu)
+    await openMenu(page, [m.topId, ...(m.subId ? [m.subId] : []), m.menuId]);
 
     // 3) 기대 결과: 화면 제목(메뉴 이름)이 보여야 함
     await expect

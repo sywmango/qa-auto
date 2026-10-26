@@ -1,12 +1,14 @@
 import { Page } from '@playwright/test';
 import { settle, waitFrame, Grid } from '../support/dream';
-import { MENU, F_POINT, F_POINT_VALUE, openTab, searchCond, loadAll, clickRow, detailOf, frameReady } from '../support/pmexec';
+import { MENU, F_POINT, F_POINT_VALUE, openTab, searchCond, loadAll, clickRow, detailOf, frameReady, listGrid } from '../support/pmexec';
+import { PM_NO, EQ_NO } from '../support/site';
 import { Screen } from './types';
 
 // 작업관리 > 정기점검작업 > 정기점검실행 (AP591)
 // 대상 화면: 목록(조건) 탭, 카렌다(월간) 탭, 점검작업 상세, 점검항목 목록, 점검값 상세
-const PM = '8007';
-const EQ = '100302AG13';
+// [sychoi] 정기점검주기와 설비 (사이트별, tests/support/site.ts)
+const PM = PM_NO;
+const EQ = EQ_NO;
 
 const cond = (page: Page) => openTab(page, 'cond');
 const cal = (page: Page) => openTab(page, 'cal');
@@ -14,9 +16,16 @@ const condList = (page: Page) => searchCond(page, { pmNo: PM });
 
 /** [sychoi] 8007 작업발행 점검작업 상세 */
 async function workDetail(page: Page) {
-  const f = await condList(page);
-  const rows = await loadAll(page, f);
-  await clickRow(f, rows.findIndex((r) => r['설비번호'] === EQ && r['점검작업상태'] === '작업발행'));
+  let f = await condList(page);
+  let rows = await loadAll(page, f);
+  let i = rows.findIndex((r) => r['설비번호'] === EQ && r['점검작업상태'] === '작업발행');
+  // [sychoi] 주기가 없는 사이트(mssql 등)는 아무 작업발행 점검작업이나 엶 (상세·Setting 만 보므로 데이터는 바뀌지 않음)
+  if (i < 0) {
+    f = await searchCond(page, {});
+    rows = await listGrid(f).rows(); // 전체는 많아서 첫 화면만
+    i = rows.findIndex((r) => r['점검작업상태'] === '작업발행');
+  }
+  await clickRow(f, i);
   return detailOf(page, 'cond');
 }
 
@@ -51,7 +60,7 @@ export const AP591: Screen = {
   fields: [
     { tc: 'AP591_TC_024', title: '검색 Field 설정', open: cond, name: '거래처', anchor: '예방작업번호', reset: true, editable: true, compare: true },
     { tc: 'AP591_TC_024', title: '카렌다(월간) 검색 Field 설정', open: cal, compare: true },
-    { tc: 'AP591_TC_024', title: '상세 Field 설정', open: workDetail, name: '비고', id: 'workPmiDetailDTO.remark', anchor: '점검명' },
+    { tc: 'AP591_TC_024', title: '상세 Field 설정', open: workDetail, name: '비고', id: 'workPmiDetailDTO.remark', anchor: '점검명', timeout: 480_000 },
     { tc: 'AP591_TC_041', title: '점검값 상세 Field 설정', open: pointValue, name: '검사세부내용', anchor: '점검항목', timeout: 480_000 },
   ],
   lists: [

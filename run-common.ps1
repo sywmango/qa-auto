@@ -5,6 +5,7 @@
 #   .\run-common.ps1 header              상단 공통 기능만 (즐겨찾기·업무그룹·Tab설정·편집모드, 대표 메뉴 정기점검주기)
 #   .\run-common.ps1 setting             Setting 만 (AD230 → AD210 → AP591 차례로)
 #   .\run-common.ps1 setting -Menus AD230,AP591   Setting 을 원하는 메뉴만
+#   $env:QA_SITE="mssql"; .\run-common.ps1      mssql 사이트(.env.mssql)에서. 결과는 playwright\.data\mssql\common-results
 #
 # 결과: playwright\.data\common-results\<단계>.json, 로그는 playwright\.data\common-logs
 # Setting 결과 엑셀은 각 메뉴 run-xxx.ps1 의 setting 단계(같은 공통 테스트)를 쓰세요.
@@ -15,17 +16,22 @@ param([string[]]$Steps = @('setting', 'header'), [string[]]$Menus = @('AD230', '
 
 Set-Location $PSScriptRoot
 $env:QA_DEBUG = '1'
-$results = "playwright\.data\common-results"
-$logs = "playwright\.data\common-logs"
+# QA 사이트: $env:QA_SITE="mssql" 이면 .env.mssql 을 쓰고, 결과·로그·로그인 파일을 사이트별로 따로 둠 (oracle 결과를 덮지 않게)
+$site = $env:QA_SITE
+$base = if ($site) { "playwright\.data\$site" } else { "playwright\.data" }
+$results = "$base\common-results"
+$logs = "$base\common-logs"
 New-Item -ItemType Directory -Force -Path $results, $logs, 'playwright\.data\evidence' | Out-Null
 
 # 메뉴별 로그인 파일 (메뉴 run 스크립트와 같게)
 $auth = @{ 'AD230' = ''; 'AD210' = 'playwright\.auth\user-ad210.json'; 'AP591' = 'playwright\.auth\user-ap591.json' }
+if ($site) { $auth = @{ 'AD230' = "playwright\.auth\user-$site.json"; 'AD210' = "playwright\.auth\user-$site-ad210.json"; 'AP591' = "playwright\.auth\user-$site-ap591.json" } }
+$outPrefix = if ($site) { "test-results-common-$site" } else { "test-results-common" }
 
 function Run-Step($name, $spec) {
     Write-Host "[$(Get-Date -Format HH:mm)] 시작 $name"
     $env:PLAYWRIGHT_JSON_OUTPUT_NAME = "$results\$name.json"
-    npx playwright test $spec "--output=test-results-common-$name" --reporter=line,json *> "$logs\$name.log"
+    npx playwright test $spec "--output=$outPrefix-$name" --reporter=line,json *> "$logs\$name.log"
     $sum = (Select-String -Path "$logs\$name.log" -Pattern '^\s+\d+ (passed|failed|skipped)' | ForEach-Object { $_.Line.Trim() }) -join ', '
     Write-Host "[$(Get-Date -Format HH:mm)] 끝 $name : $sum"
 }
@@ -48,6 +54,7 @@ foreach ($s in $Steps) {
         'header' {
             Clear-RunFlags
             $env:RUN_COMMON = '1'
+            if ($auth['AD230']) { $env:QA_AUTH = $auth['AD230'] }
             Run-Step 'header' 'common/header'
         }
     }
