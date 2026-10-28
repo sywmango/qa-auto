@@ -83,6 +83,10 @@ export const BUTTON_CLASS: Record<string, string> = {
   '표준항목선택': 'b_copy',
   '접기': 'b_collapse',
   '선택': 'b_select',
+  '승인요청': 'b_approval',
+  '개정': 'b_revision',
+  '결재처리': 'b_appraction',
+  '기본 결재자로 저장': 'b_savedefappr',
 };
 
 /** 프레임 안의 보이는 버튼: 고유 class 가 있으면 class 로, 없거나 class 가 안 붙은 화면이면 정확한 글자로 찾습니다. */

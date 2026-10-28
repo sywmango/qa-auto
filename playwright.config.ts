@@ -11,8 +11,8 @@ export default defineConfig({
   testDir: './tests',
   // 정기점검주기(AD230) 테스트는 주기를 만들고·완료·삭제하므로 평소에는 빼고, RUN_AD230=1 일 때만 실행
   // (run-ad230.ps1 이 자동으로 켬)
-  // 정기점검계획(AD210) 테스트도 같은 이유로 RUN_AD210=1 일 때만 실행, 정기점검실행(AP591)은 RUN_AP591=1
-  testIgnore: [...(process.env.RUN_AD230 ? [] : ['**/ad230/**']), ...(process.env.RUN_AD210 ? [] : ['**/ad210/**']), ...(process.env.RUN_AP591 ? [] : ['**/ap591/**']),
+  // 정기점검계획(AD210) 테스트도 같은 이유로 RUN_AD210=1 일 때만 실행, 정기점검실행(AP591)은 RUN_AP591=1, 결재요청(AZ303)은 RUN_AZ303=1
+  testIgnore: [...(process.env.RUN_AD230 ? [] : ['**/ad230/**']), ...(process.env.RUN_AD210 ? [] : ['**/ad210/**']), ...(process.env.RUN_AP591 ? [] : ['**/ap591/**']), ...(process.env.RUN_AZ303 ? [] : ['**/az303/**']),
     // 공통 테스트(tests/common)는 RUN_COMMON 이나 위 RUN_ 값이 있을 때만 (Setting 은 RUN_ 값이 켜진 메뉴만 만듦, run-common.ps1)
     ...(process.env.RUN_AD230 || process.env.RUN_AD210 || process.env.RUN_AP591 || process.env.RUN_COMMON ? [] : ['**/common/**'])],
 
