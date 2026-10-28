@@ -110,7 +110,8 @@ export async function loginUserName(page: Page) {
 
 /** Lov 팝업을 열어 행을 고르고 [선택]. pick 이 있으면 그 글자의 행, 없으면 첫 데이터 행 */
 export async function chooseInLov(page: Page, scope: Frame, id: string, pick?: string) {
-  await scope.locator(`[id="${id}"]`).locator('xpath=..').locator('p.open_spop').click();
+  // 설비·창고 Lov 처럼 큰 팝업은 클릭 도중 팝업이 먼저 떠서 Playwright 가 "가로막힘"으로 클릭을 다시 시도하다 멈춤 → 짧게 시도하고 팝업이 떴는지로 판단
+  await scope.locator(`[id="${id}"]`).locator('xpath=..').locator('p.open_spop').click({ timeout: 5_000 }).catch(() => {});
   await settle(page, 1500);
   const lov = await lovContentFrame(page);
   const cells = lov.locator('div.gridbox:visible .objbox tr:visible td:visible');
