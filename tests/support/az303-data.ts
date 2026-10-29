@@ -2,7 +2,7 @@ import { Page, Frame, test } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { settle, clickButton, waitFrame, Grid } from './dream';
-import { put, saveForm, dateAfter } from './form';
+import { put, saveForm, dateAfter, TAG } from './form';
 import { DATA_DIR } from './site';
 import { openMenuByPath, listFrame } from './approval';
 
@@ -50,7 +50,7 @@ export async function createDayLog(page: Page) {
   let day = '';
   for (let i = 1; i < 300 && !day; i++) if (!used.has(dateAfter(-i))) day = dateAfter(-i);
   const [, m, d] = day.split('-');
-  const title = `[sychoi] ${+m}월 ${+d}일 업무일지`;
+  const title = `${TAG} ${+m}월 ${+d}일 업무일지`;
   await clickButton(list, '생성');
   await settle(page, 3000);
   const det = await waitFrame(page, /maWoDayRptDetail_maWoDayRptList/);

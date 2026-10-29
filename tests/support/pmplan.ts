@@ -1,6 +1,6 @@
 import { test, Page, Frame, expect } from '@playwright/test';
 import { openMenu, waitFrame, settle, Grid } from './dream';
-import { put, dateAfter } from './form';
+import { put, dateAfter, BASE_TAG } from './form';
 
 // 정기점검계획 (AD210) 화면 부품
 // 탭 5개: 카렌다(연간) / 카렌다(월간) / 목록(위치) / 목록(종류) / 목록(조건)
@@ -110,7 +110,7 @@ export async function detailOf(page: Page, k: TabKey, kind: 'plan' | 'pmi') {
 
 /** [sychoi] 계획 중 상태가 status 인 행 찾기 (목록(조건), 넓은 기간) */
 export async function findPlan(page: Page, status: '작업계획' | '작업발행' | '작업완료') {
-  const f = await searchPeriod(page, { pmDesc: '[sychoi]' });
+  const f = await searchPeriod(page, { pmDesc: BASE_TAG });
   const rows = await loadAll(page, f);
   const idx = rows.findIndex((r) => r['일정상태'] === status);
   return { f, rows, idx, row: rows[idx] };

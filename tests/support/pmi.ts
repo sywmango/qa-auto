@@ -23,10 +23,10 @@ export const D = {
 
 // 점검항목: [항목, 적정기준, 점검방법, 하한, 기준, 상한]
 export const POINTS = [
-  ['[sychoi] 임펠러 체결볼트 토크', '40~45 N·m', '토크렌치로 체결 토크 측정', '40', '42', '45'],
-  ['[sychoi] 메인 베어링 표면온도', '70℃ 이하', '적외선 온도계로 운전 중 측정', '0', '50', '70'],
-  ['[sychoi] 초퍼 모터 운전전류', '정격 18A 이하', '클램프미터로 무부하 운전 전류 측정', '0', '15', '18'],
-  ['[sychoi] 하부 배출밸브 씰 누유', '누유 없음(10mm 이하 번짐)', '배출밸브 하부 육안 확인', '0', '0', '10'],
+  [`${TAG} 임펠러 체결볼트 토크`, '40~45 N·m', '토크렌치로 체결 토크 측정', '40', '42', '45'],
+  [`${TAG} 메인 베어링 표면온도`, '70℃ 이하', '적외선 온도계로 운전 중 측정', '0', '50', '70'],
+  [`${TAG} 초퍼 모터 운전전류`, '정격 18A 이하', '클램프미터로 무부하 운전 전류 측정', '0', '15', '18'],
+  [`${TAG} 하부 배출밸브 씰 누유`, '누유 없음(10mm 이하 번짐)', '배출밸브 하부 육안 확인', '0', '0', '10'],
 ];
 
 export const log = (s: string) => { if (process.env.QA_DEBUG) console.log('[sub]', new Date().toISOString().slice(11, 19), s); };
@@ -156,7 +156,7 @@ export async function addDoc(page: Page, title: string, fileName: string) {
   await settle(page, 1500);
   const dd = await detailFrame(page, D.doc);
   const file = test.info().outputPath(fileName);
-  fs.writeFileSync(file, `${title.replace('[sychoi] ', '')}\n1. 임펠러 체결 상태\n2. 베어링 이상음·온도\n3. 배출밸브 씰 누유\n4. 안전 인터록 작동\n`);
+  fs.writeFileSync(file, `${title.replace(`${TAG} `, '')}\n1. 임펠러 체결 상태\n2. 베어링 이상음·온도\n3. 배출밸브 씰 누유\n4. 안전 인터록 작동\n`);
   const fi = dd.locator('input[type=file]').first();
   const hasFile = (await fi.count()) > 0;
   if (hasFile) await fi.setInputFiles(file);

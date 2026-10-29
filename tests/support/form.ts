@@ -75,8 +75,11 @@ export function dateAfter(days: number) {
   return d.toISOString().slice(0, 10);
 }
 
-/** 테스트가 만든 데이터 표시: 대표 이름 칸 맨 앞에 붙임 */
-export const TAG = '[sychoi]';
+/** 테스트가 만든 데이터 표시: 대표 이름 칸 맨 앞에 붙임. 사람마다 다름 → [솔루션 로그인 ID] (.env 의 QA_USER_ID, 2026-10-29 사용자 결정) */
+export const TAG = `[${process.env.QA_USER_ID || 'qa'}]`;
+
+/** 팀 공용 기준 데이터(oracle 주기 8007·설비 100302AG13, 달력·표준작업 등)의 이름표. 처음 만든 사람 표시라 그대로 씀 (지우지 않는 데이터) */
+export const BASE_TAG = '[sychoi]';
 
 /** 대표 이름 칸인지 (작업명, 점검항목, 제목 등) */
 export const isNameLabel = (label: string) => /작업명|점검항목|제목|요청명|^.+명$/.test(label) && !/부서|공장|설비|사원|담당|거래처|달력|그룹/.test(label);

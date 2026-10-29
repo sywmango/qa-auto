@@ -1,7 +1,7 @@
 import { test, expect, Page, Frame } from '@playwright/test';
 import fs from 'fs';
 import { clickButton, fieldValue, settle, waitFrame, Grid } from '../support/dream';
-import { put, dateAfter, saveForm, fillAllFields, listFields } from '../support/form';
+import { put, dateAfter, saveForm, fillAllFields, listFields, TAG } from '../support/form';
 import { TAB, openTab, search, clickRow, detailOf, note, loadAll, pmiDetailFrame } from '../support/pmplan';
 import { PM, EQ, state, keep, okAndMessage, myPlans, rowIndex, addPlans, checkRows } from '../support/pmplan-data';
 
@@ -104,8 +104,8 @@ test.describe('AD210 정기점검계획 (점검작업)', () => {
 
   test('AD210_EC_011 비고·점검명에 특수문자와 긴 글자를 넣는다.', async ({ page }) => {
     const { d } = await openWork(page, state.d4);
-    const special = `[sychoi] 특수문자 ' " < > & 확인`;
-    const long = '[sychoi] ' + '가'.repeat(400);
+    const special = `${TAG} 특수문자 ' " < > & 확인`;
+    const long = `${TAG} ` + '가'.repeat(400);
     await put(d.locator(`[id="${P}.remark"]`), special);
     const m1 = await saveForm(page, d);
     let { d: d2 } = await openWork(page, state.d4);
@@ -138,7 +138,7 @@ test.describe('AD210 정기점검계획 (점검작업)', () => {
     await settle(page, 2000);
     const dd = await waitFrame(page, 'tabFrameTAB.maPtDocLibDetail_maPtDocLibList');
     await settle(page, 1000);
-    const title = '[sychoi] 정기점검 결과 사진';
+    const title = `${TAG} 정기점검 결과 사진`;
     const file = test.info().outputPath('점검결과.txt');
     fs.writeFileSync(file, '임펠러 체결 토크 52N·m, 베어링 표면온도 41℃ 정상\n');
     const fi = dd.locator('input[type=file]').first();
@@ -260,7 +260,7 @@ test.describe('AD210 정기점검계획 (점검작업)', () => {
     const input = d.locator(`[id="${P}.remark"]`);
     const editable = await input.evaluate((e) => !((e as HTMLInputElement).readOnly || (e as HTMLInputElement).disabled));
     let msg = '';
-    if (editable && btns.includes('저장')) { await put(input, '[sychoi] 완료 후 수정 시도'); msg = await saveForm(page, d); }
+    if (editable && btns.includes('저장')) { await put(input, `${TAG} 완료 후 수정 시도`); msg = await saveForm(page, d); }
     const { d: d2 } = await openWork(page, today, '작업완료');
     const after = await v(d2, 'remark');
     note(`작업완료 상세: 버튼 [${btns.join(', ') || '없음'}], 비고 칸 ${editable ? '수정 가능' : '읽기전용'}${msg ? `, 저장 "${msg}"` : ''} → 비고 "${before}" → "${after}"`);

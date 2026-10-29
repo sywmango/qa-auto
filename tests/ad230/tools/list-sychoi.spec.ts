@@ -1,16 +1,17 @@
 import { test } from '@playwright/test';
+import { TAG } from '../../support/form';
 import fs from 'fs';
 import { openMenu, waitFrame, clickTab, settle, Grid } from '../../support/dream';
 import { F_COND } from '../../support/pmi';
 
 // [sychoi] 주기 목록 (보고서의 테스트 데이터 목록용, 읽기만)
-test('[sychoi] 주기 목록', async ({ page }) => {
+test(`${TAG} 주기 목록`, async ({ page }) => {
   test.setTimeout(180_000);
   await openMenu(page, ['132', '372', '454']);
   await clickTab(page, '목록(조건)');
   const f = await waitFrame(page, F_COND);
   await f.locator('[id="maPmMstrCommonDTO.filterIsActiveDesc"]').fill('');
-  await f.locator('[id="maPmMstrCommonDTO.pmDesc"]').fill('[sychoi]');
+  await f.locator('[id="maPmMstrCommonDTO.pmDesc"]').fill(TAG);
   await f.locator('a.b_search:visible').first().click();
   await settle(page, 2500);
   const rows = await new Grid(f, '예방작업번호').rows();

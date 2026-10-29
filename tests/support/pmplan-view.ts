@@ -1,14 +1,14 @@
 import { test, expect, Page, Frame } from '@playwright/test';
 import fs from 'fs';
 import { openMenu, waitFrame, clickButton, settle, Grid, openLov, lovTotal } from './dream';
-import { dateAfter } from './form';
+import { dateAfter, BASE_TAG } from './form';
 import { TAB, TabKey, openTab, listGrid, search, searchPeriod, loadAll, clickRow, detailOf, isDate, note } from './pmplan';
 
 // 정기점검계획 (AD210) 카렌다·다른 탭 확인 부품
 // 공통 화면 테스트(tests/common/screen.spec.ts)는 목록(조건) 탭으로 돌고, 카렌다(연간·월간)·목록(위치·종류) 탭 확인은
 // 같은 테스트ID 에 이 파일의 함수로 덧붙입니다 (tests/screens/ad210.ts 의 view.extra).
 
-export const SY = '[sychoi]';
+export const SY = BASE_TAG;   // 팀 공용 기준 주기(8007)의 계획
 const today = () => dateAfter(0);
 export const ym = (d: string) => d.slice(0, 7);
 
