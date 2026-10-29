@@ -1,4 +1,4 @@
-﻿# 처음 한 번: QA 사이트 계정을 물어보고 .env 를 만든 뒤, 로그인이 되는지 확인합니다.
+﻿# 처음 한 번: QA 사이트 계정과 SVN 작업 폴더를 물어보고 .env 를 만든 뒤, 로그인이 되는지 확인합니다.
 #
 # 사용법 (이 폴더에서, PowerShell)
 #   .\setup-env.ps1          ID·비밀번호를 물어보고 .env 를 만듦 (이미 있으면 덮어쓸지 물어봄)
@@ -25,12 +25,18 @@ if (-not $url) { $url = 'http://202.133.21.133:1220' }
 $company = Read-Host '로그인 후 고를 시스템 (엔터 = Dream4.1 (QA))'
 if (-not $company) { $company = 'Dream4.1 (QA)' }
 
+# 설계서·UT 원본이 있는 SVN 작업 폴더 (사람마다 다름). 메뉴별 위치는 Claude 가 이 안에서 찾아 메뉴 md 에 상대 경로로 적음
+$svn = Read-Host 'SVN 작업 폴더 맨 위 (예: D:\svn\dream41, 없으면 엔터)'
+if ($svn -and -not (Test-Path $svn)) { Write-Host "주의: $svn 폴더가 없습니다. 나중에 .env 의 QA_SVN_ROOT 를 고치세요." }
+
 $text = @"
 # QA 사이트 계정 (setup-env.ps1 이 만듦, Git 에 올리지 않음)
 BASE_URL=$url
 QA_USER_ID=$id
 QA_USER_PW=$pw
 QA_COMPANY=$company
+# 설계서·UT 원본이 있는 SVN 작업 폴더
+QA_SVN_ROOT=$svn
 "@
 [IO.File]::WriteAllText($envFile, $text, (New-Object Text.UTF8Encoding $false))
 Write-Host ".env 를 만들었습니다: $envFile"
