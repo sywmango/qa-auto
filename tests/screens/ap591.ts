@@ -1,6 +1,7 @@
 import { Page } from '@playwright/test';
 import { settle, waitFrame, Grid } from '../support/dream';
-import { MENU, F_POINT, F_POINT_VALUE, openTab, searchCond, loadAll, clickRow, detailOf, frameReady, listGrid } from '../support/pmexec';
+import { MENU, DTO, P, TAB, F_POINT, F_POINT_VALUE, openTab, searchCond, search, loadAll, clickRow, detailOf, frameReady, listGrid } from '../support/pmexec';
+import * as V from '../support/pmexec-view';
 import { PM_NO, EQ_NO } from '../support/site';
 import { Screen } from './types';
 
@@ -70,4 +71,52 @@ export const AP591: Screen = {
   tabs: [
     { tc: 'AP591_TC_024', title: '상세 Tab 설정', open: workDetail, key: 'maPtDocLibList', name: '첨부문서', shown: docTabShown, timeout: 600_000 },
   ],
+  // 검색·목록·상세 공통 케이스 (tests/common/screen.spec.ts): 목록(조건) 탭, [sychoi] 주기의 점검작업. 카렌다(월간) 탭 확인은 extra 로 덧붙임
+  view: {
+    ids: {
+      defaults: 'AP591_TC_001', lovOrigin: 'AP591_TC_003', lovs: 'AP591_TC_004', searchOne: 'AP591_TC_005', searchCombo: 'AP591_TC_006',
+      searchAll: 'AP591_TC_007', searchNone: 'AP591_TC_008', sort: 'AP591_TC_011', total: 'AP591_TC_012', listDetail: 'AP591_TC_015',
+      readonly: 'AP591_TC_018', close: 'AP591_TC_019', excel: 'AP591_TC_023',
+    },
+    open: condList,
+    search: (page, f) => search(page, f),
+    dto: DTO,
+    key: '점검명',
+    pickRow: (rows) => rows.find((r) => r['설비번호'] === EQ && r['점검작업상태'] === '작업발행') ?? rows.find((r) => r['점검작업상태'] === '작업발행') ?? rows[0],
+    defaults: { open: cond, empty: 'all', values: { filterStartDate: /^\d{4}-\d{2}-\d{2}$/, filterEndDate: /^(\d{4}-\d{2}-\d{2})?$/ } },
+    lovOrigin: { id: 'filterEquipDesc', menu: ['114', '447'], frame: 'tabFrameTAB.assetMstrLoc_assetMstr', header: '설비번호' },
+    lovs: [
+      ...([['공장명', 'filterPlantDesc'], ['부서', 'filterDeptDesc'], ['작업그룹명', 'filterWkCtrDesc'], ['거래처', 'filterVendorDesc'],
+        ['설비위치', 'filterEqLocDesc'], ['설비종류', 'filterEqCtgDesc']] as const).map(([l, id]) => [`카렌다(월간) ${l}`, id, cal] as [string, string, typeof cal]),
+      ['담당자', 'filterManagerDesc', cond], ['사용부서', 'filterUsageDeptDesc', cond], ['점검작업상태', 'filterPmSchedStatusDesc', cond],
+      ['법정설비여부', 'filterIsLawEq', cond], ['관리자(정)', 'filterMainMngName', cond], ['관리자(부)', 'filterSubMngName', cond],
+    ],
+    conds: [
+      { id: 'filterEquipDesc', col: '설비번호', value: (r) => r['설비번호'], lov: '설비번호' },
+      { id: 'filterPmSchedStatusDesc', col: '점검작업상태', value: () => '작업완료', lov: '' },
+    ],
+    combos: [
+      [{ id: 'filterPmNo', col: '예방작업번호', value: () => PM, preset: true }, { id: 'filterEquipDesc', col: '설비번호', value: (r) => r['설비번호'], lov: '설비번호' }],
+      [{ id: 'filterPmNo', col: '예방작업번호', value: () => PM, preset: true }, { id: 'filterPmSchedStatusDesc', col: '점검작업상태', value: (r) => r['점검작업상태'], lov: '' }],
+    ],
+    clearAll: ['filterPmNo'],
+    none: { id: 'filterPmNo', value: '99999999' },
+    sort: { col: '점검일자' },
+    detail: {
+      click: '점검명',
+      frame: TAB.cond.detail,
+      title: () => /정기점검실행\s*:\s*\d+/,
+      dto: P,
+      pairs: [
+        ['점검일자', 'wkorDate'], ['점검명', 'pmiDesc'], ['설비명', 'equipDesc'], ['부서', 'deptDesc'], ['담당자', 'empDesc'],
+        ['점검작업상태', 'pmschedStatusDesc'], ['점검시작일자', 'startDate'], ['점검시작시간', 'startTime'], ['점검종료일자', 'endDate'],
+        ['점검종료시간', 'endTime'], ['점검시간[분]', 'workTime'], ['설비위치', 'eqLocDesc'], ['작업형태', 'pmTypeDesc'], ['비고', 'remark'],
+      ],
+      readonly: ['pminslistId', 'pmschedStatusDesc', 'woTypeDesc', 'pmTypeDesc', 'equipDesc', 'eqLocDesc', 'workTime'],
+    },
+    extra: {
+      defaults: V.defaultsCalendar, lovOrigin: V.lovOriginCalendar, lovs: V.groupHidden, searchOne: V.searchCalendar, sort: V.sortMore, excel: V.excelCalendar,
+    },
+    timeout: 300_000,
+  },
 };

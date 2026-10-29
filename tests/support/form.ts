@@ -275,3 +275,49 @@ export async function expectRequiredMessage(page: Page, scope: Frame, label: str
   expect.soft(msg, `${label} 누락 시 필수 안내`).toMatch(/필수/);
   return msg;
 }
+
+
+/** 확인창(OK)이 뜨면 누르고, 그 뒤 안내 문구(확인 버튼 상자, 잠깐 뜨는 알림, 브라우저 alert)를 읽어 돌려줌 */
+export async function okAndMessage(page: Page) {
+  const dialogs: string[] = [];
+  const onDialog = async (d: import('@playwright/test').Dialog) => { dialogs.push(d.message()); await d.accept(); };
+  page.on('dialog', onDialog);
+  await settle(page, 800);
+  // 확인창은 메인 화면에 뜨기도 하고(getTopPage), 목록 프레임 안에 뜨기도 함(dhtmlx.confirm) → 모든 프레임에서 찾음
+  let ok = page.getByText('OK', { exact: true }).filter({ visible: true }).first();
+  for (const fr of page.frames()) {
+    const o = fr.getByText('OK', { exact: true }).filter({ visible: true }).first();
+    if (await o.isVisible().catch(() => false)) { ok = o; break; }
+  }
+  const confirm = await ok.isVisible().catch(() => false);
+  let confirmText = '';
+  if (confirm) {
+    confirmText = await ok.evaluate((b) => {
+      // OK 버튼에서 위로 올라가며 글자가 120자 이하인 가장 큰 상자 (화면 전체 글자를 읽지 않도록)
+      let x: HTMLElement | null = b as HTMLElement, best = '';
+      for (let i = 0; i < 6 && x; i++, x = x.parentElement) {
+        const t = (x.innerText || '').replace(/\s+/g, ' ').replace(/OK|Cancel|취소/g, '').trim();
+        if (t.length > 120) break;
+        if (t) best = t;
+      }
+      return best;
+    });
+    await ok.click({ timeout: 10_000 }).catch(() => ok.click({ force: true }));
+  }
+  let toast = '';
+  for (let i = 0; i < 8 && !toast; i++) {
+    const msg = await popupMessage(page);
+    if (msg) { toast = msg; break; }
+    for (const fr of page.frames()) {
+      const t = await fr.evaluate(() => [...document.querySelectorAll<HTMLElement>('div, p, span')]
+        .filter((e) => e.offsetWidth > 0 && e.children.length === 0 && /(니다|세요|있습니다)\.?$/.test(e.innerText.trim()) && e.innerText.length < 100 && !/생성하세요\.$/.test(e.innerText.trim()))
+        .map((e) => e.innerText.trim())[0] ?? '').catch(() => '');
+      if (t) { toast = t; break; }
+    }
+    if (!toast) await page.waitForTimeout(500);
+  }
+  await settle(page, 1500);
+  const second = await popupMessage(page);
+  page.off('dialog', onDialog);
+  return [confirm ? `확인창 "${confirmText}" OK` : '', ...dialogs.map((d) => `알림 "${d}"`), toast ? `안내 "${toast}"` : '', second ? `안내 "${second}"` : ''].filter(Boolean).join(', ') || '안내 없음';
+}

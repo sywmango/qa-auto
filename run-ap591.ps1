@@ -43,7 +43,10 @@ if ($Steps -contains 'view' -and $Steps -contains 'work') {
 
 foreach ($s in $Steps) {
     switch ($s) {
-        'view'     { Run-Step 'view' 'ap591/exec-view' }
+        'view'     {
+            Run-Step 'view-common' 'common/screen'   # 검색·목록·상세 공통 케이스 (화면 정의 tests/screens)
+            Run-Step 'view' 'ap591/exec-view'
+        }
         'setting'  { Run-Step 'setting' 'common/setting' }
         'work'     { Run-Step 'work' 'ap591/exec-work' }
         'evidence' { Run-Step 'evidence' 'ap591/evidence' }

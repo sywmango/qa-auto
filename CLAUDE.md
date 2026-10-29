@@ -31,6 +31,7 @@ DREAM CMMS(Dream4.1) QA 사이트 Playwright 자동 테스트 저장소. Claude�
 
 **테스트 코드**
 - 공통 부품 먼저 쓴다: `tests/support/dream.ts`(메뉴·그리드·프레임), `form.ts`(`put()`·`saveForm`), `setting.ts`, `header.ts`.
+- 검색·목록·상세 공통 케이스는 메뉴마다 짜지 않는다: 화면 정의 `tests/screens/<화면ID>.ts` 의 `view` 만 적으면 `tests/common/screen.spec.ts` 가 돈다. 메뉴 코드에는 그 메뉴 고유 규칙만 (2026-10-29).
 - 값 입력은 `put()` (키 입력이 있어야 저장됨). 저장 성공 안내가 없으므로 성공 판정은 다시 열어 값 비교.
 - 버튼은 고유 class 로 찾고, 없으면 정확한 글자로 찾는다: `button()` / `clickButton()` (`tests/support/dream.ts`, 표 `BUTTON_CLASS`. 예: 생성 b_create, 삭제 b_delete, 저장 b_save). 새 버튼 class 를 확인하면 표에 추가한다.
 - Setting 버튼은 검색·상세 = b_colsetting, 목록 = b_setting. 탭은 class 가 모두 같아(tb_menu) 글자로 찾는다. 입력칸은 칸 ID 로 찾는다.

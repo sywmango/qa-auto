@@ -10,6 +10,7 @@ import {
 // 작업관리 > 정기점검작업 > 정기점검실행 (AP591) — 조회만 하는 케이스 (데이터를 만들거나 바꾸지 않음)
 // 테스트 제목 앞 번호 = docs\AP591\cases.json 의 테스트ID
 // 비교용 데이터: [sychoi] 주기 8007 (설비 100302AG13) 의 점검작업
+// 검색·목록·상세 공통 케이스(TC_001, 003~008, 011, 012, 015, 018, 019, 023)는 tests/common/screen.spec.ts (화면 정의 tests/screens/ap591.ts)
 
 const PM = '8007';
 const EQ = '100302AG13';
@@ -32,22 +33,6 @@ async function openWork(page: Page, status: '작업발행' | '작업완료' = '�
 }
 
 test.describe('AP591 정기점검실행 (조회)', () => {
-  test('AP591_TC_001 검색 필드의 기본값을 확인한다.', async ({ page }) => {
-    const log: string[] = [];
-    for (const k of ['cal', 'cond'] as TabKey[]) {
-      const f = await openTab(page, k);
-      const vals = await f.evaluate((dto) => [...document.querySelectorAll<HTMLInputElement>(`input[id^="${dto}."]`)].filter((e) => e.offsetWidth > 0).map((e) => [e.id.split('.')[1], e.value] as [string, string]), DTO);
-      const map = Object.fromEntries(vals);
-      const dateKeys = ['filterYyyymm', 'filterStartDate', 'filterEndDate'];
-      const filled = vals.filter(([id, v]) => v && !dateKeys.includes(id));
-      log.push(`${TAB[k].name}: ${vals.filter(([id]) => dateKeys.includes(id)).map(([id, v]) => `${id}="${v}"`).join(', ')}, 그 외 값 있는 칸 ${filled.length}개${filled.length ? ` (${filled.map(([i, v]) => `${i}=${v}`).join(', ')})` : ''}`);
-      if (k === 'cal') expect.soft(map.filterYyyymm, '년월 = 이번 달').toBe(ym(today()));
-      if (k === 'cond') expect.soft(isDate(map.filterStartDate), '일정조정 일자 시작 기본값').toBe(true);
-      expect.soft(filled.length, `${TAB[k].name} 나머지 칸 비어 있음`).toBe(0);
-    }
-    note(log.join('\n'));
-  });
-
   test('AP591_TC_002 검색 필드의 필수값 표시를 확인한다.', async ({ page }) => {
     const log: string[] = [];
     for (const k of ['cal', 'cond'] as TabKey[]) {
@@ -75,159 +60,6 @@ test.describe('AP591 정기점검실행 (조회)', () => {
     if (!msg) await page.screenshot({ path: 'playwright/.data/evidence/ap591-TC_002.png' });
     note(log.join('\n'));
     expect.soft(msg, '년월 필수 안내').toMatch(/필수|입력|년월/);
-  });
-
-  test('AP591_TC_003 설비 Lov 팝업의 데이터를 확인한다.', async ({ page, context }) => {
-    test.setTimeout(180_000);
-    const log: string[] = [];
-    const p2 = await context.newPage();
-    await openMenu(p2, ['114', '447']);
-    const ef = await waitFrame(p2, 'tabFrameTAB.assetMstrLoc_assetMstr');
-    const eqTotal = (await new Grid(ef, '설비번호').total())?.all;
-    await p2.close();
-    for (const k of ['cal', 'cond'] as TabKey[]) {
-      const f = await openTab(page, k);
-      const lov = await openLov(page, f, `${DTO}.filterEquipDesc`);
-      const n = await lovTotal(lov);
-      log.push(`${TAB[k].name} 설비 Lov ${n}건`);
-      expect.soft(n, `${TAB[k].name} 설비 Lov 건수 = 설비 메뉴 건수`).toBe(eqTotal);
-      await closeLov(page);
-    }
-    note(`${log.join(', ')} / 설비 메뉴 ${eqTotal}건`);
-  });
-
-  test('AP591_TC_004 그 외 검색 필드 Lov 팝업의 데이터를 확인한다.', async ({ page }) => {
-    test.setTimeout(600_000);
-    const sets: [TabKey, string, string][] = [
-      ['cal', '공장명', 'filterPlantDesc'], ['cal', '부서', 'filterDeptDesc'], ['cal', '작업그룹명', 'filterWkCtrDesc'], ['cal', '거래처', 'filterVendorDesc'],
-      ['cal', '설비위치', 'filterEqLocDesc'], ['cal', '설비종류', 'filterEqCtgDesc'],
-      ['cond', '담당자', 'filterManagerDesc'], ['cond', '사용부서', 'filterUsageDeptDesc'], ['cond', '점검작업상태', 'filterPmSchedStatusDesc'],
-      ['cond', '법정설비여부', 'filterIsLawEq'], ['cond', '관리자(정)', 'filterMainMngName'], ['cond', '관리자(부)', 'filterSubMngName'],
-    ];
-    const log: string[] = [];
-    for (const [k, label, id] of sets) {
-      const f = await openTab(page, k);
-      try {
-        const lov = await openLov(page, f, `${DTO}.${id}`);
-        const n = await lovTotal(lov);
-        const nodes = n ? 0 : (await visibleTreeNodes(lov)).length;
-        const rows = n ? 0 : await lov.evaluate(() => [...document.querySelectorAll<HTMLElement>('div.gridbox .objbox tr')].filter((t) => t.offsetHeight > 0 && t.querySelector('td')).length);
-        log.push(`${TAB[k].name} ${label}: ${n ?? rows}건${nodes ? ` (트리 ${nodes}개)` : ''}`);
-        expect.soft((n ?? rows) + nodes, `${label} Lov 에 데이터가 있어야 함`).toBeGreaterThan(0);
-        await closeLov(page);
-      } catch {
-        log.push(`${TAB[k].name} ${label}: 팝업 열기 실패`);
-        expect.soft(false, `${label} Lov 팝업이 열려야 함`).toBe(true);
-        await closeLov(page);
-      }
-    }
-    // 점검Group 필드 (예전 이슈: 사용하지 않으므로 숨김 필요)
-    for (const k of ['cal', 'cond'] as TabKey[]) {
-      const f = await openTab(page, k);
-      const labels = await f.evaluate(() => [...document.querySelectorAll<HTMLElement>('label')].filter((l) => l.offsetWidth > 0).map((l) => l.innerText.trim()));
-      const grp = labels.filter((l) => /점검\s*Group/i.test(l));
-      log.push(`${TAB[k].name} 점검Group 필드 ${grp.length ? '보임' : '안 보임'}`);
-      expect.soft(grp, `${TAB[k].name} 점검Group 숨김`).toEqual([]);
-    }
-    note(log.join('\n'));
-  });
-
-  test('AP591_TC_005 조건 하나로 정기점검실행을 검색한다.', async ({ page }) => {
-    test.setTimeout(300_000);
-    const base = (await findWork(page, '작업발행')).row;
-    const log: string[] = [];
-    const check = async (where: string, f: Frame, col: string, value: string, exact = false) => {
-      const rows = await loadAll(page, f);
-      const t = await listGrid(f).total();
-      const bad = rows.filter((r) => (exact ? r[col] !== value : !(r[col] || '').includes(value)));
-      log.push(`${where} ${col}="${value}": ${rows.length}행, Total ${t?.loaded}/${t?.all}, 다른 값 ${bad.length}${bad.length ? ` (예: ${bad[0][col]})` : ''}`);
-      expect.soft(rows.length, `${where} ${col} 결과 있음`).toBeGreaterThan(0);
-      expect.soft(bad.length, `${where} ${col} 조건과 다른 행 없음`).toBe(0);
-      expect.soft(t?.all, `${where} Total = 행 수`).toBe(rows.length);
-    };
-    // 목록(조건): 설비 (Lov)
-    let f = await openTab(page, 'cond');
-    await put(f.locator(`[id="${DTO}.filterStartDate"]`), dateAfter(-60));
-    await put(f.locator(`[id="${DTO}.filterEndDate"]`), dateAfter(400));
-    await pickInLov(page, await openLov(page, f, `${DTO}.filterEquipDesc`), EQ, '설비번호');
-    await search(page, f);
-    await check('목록(조건)', f, '설비번호', EQ, true);
-    // 목록(조건): 점검작업상태 (Lov) = 작업완료
-    f = await openTab(page, 'cond');
-    await put(f.locator(`[id="${DTO}.filterStartDate"]`), dateAfter(-30));
-    await put(f.locator(`[id="${DTO}.filterEndDate"]`), dateAfter(0));
-    await pickInLov(page, await openLov(page, f, `${DTO}.filterPmSchedStatusDesc`), '작업완료');
-    await search(page, f);
-    await check('목록(조건)', f, '점검작업상태', '작업완료', true);
-    // 카렌다(월간): 예방작업번호 → 계획 있는 날 T 클릭
-    f = await searchCal(page, { ym: ym(base['점검일자']), pmNo: PM });
-    const cells = await calendarCells(f);
-    const i = cells.findIndex((c) => c.t > 0);
-    if (i < 0) { log.push('카렌다(월간): 예방작업번호 결과 없음'); expect.soft(i).toBeGreaterThanOrEqual(0); } else {
-      await clickCalendar(page, f, i, 'T');
-      const rows = await loadAll(page, f);
-      const t = await listGrid(f).total();
-      const mine = rows.filter((r) => r['설비번호'] === EQ || /sychoi/.test(r['점검명']));
-      log.push(`카렌다(월간) 예방작업번호=${PM} ${ym(base['점검일자'])}: 날짜 ${cells[i].day}일 T ${cells[i].t} 클릭 → ${rows.length}행, Total ${t?.all}, [sychoi] 설비 행 ${mine.length}`);
-      expect.soft(rows.length, '카렌다 숫자 클릭 목록 = T').toBe(cells[i].t);
-      expect.soft(mine.length, '8007 점검작업만').toBe(rows.length);
-    }
-    note(log.join('\n'));
-  });
-
-  test('AP591_TC_006 여러 조건을 조합하여 검색한다.', async ({ page }) => {
-    test.setTimeout(240_000);
-    const log: string[] = [];
-    // ① 예방작업번호 + 설비
-    let f = await openTab(page, 'cond');
-    await put(f.locator(`[id="${DTO}.filterStartDate"]`), dateAfter(-60));
-    await put(f.locator(`[id="${DTO}.filterEndDate"]`), dateAfter(400));
-    await f.locator(`[id="${DTO}.filterPmNo"]`).fill(PM);
-    await pickInLov(page, await openLov(page, f, `${DTO}.filterEquipDesc`), EQ, '설비번호');
-    await search(page, f);
-    let rows = await loadAll(page, f);
-    let bad = rows.filter((r) => r['설비번호'] !== EQ);
-    log.push(`① 예방작업번호 ${PM} + 설비 ${EQ}: ${rows.length}행, 다른 설비 ${bad.length}`);
-    expect.soft(rows.length).toBeGreaterThan(0);
-    expect.soft(bad.length).toBe(0);
-    // ② 예방작업번호 + 점검작업상태(작업발행)
-    f = await openTab(page, 'cond');
-    await put(f.locator(`[id="${DTO}.filterStartDate"]`), dateAfter(-60));
-    await put(f.locator(`[id="${DTO}.filterEndDate"]`), dateAfter(400));
-    await f.locator(`[id="${DTO}.filterPmNo"]`).fill(PM);
-    await pickInLov(page, await openLov(page, f, `${DTO}.filterPmSchedStatusDesc`), '작업발행');
-    await search(page, f);
-    rows = await loadAll(page, f);
-    const all = await loadAll(page, await searchCond(page, { pmNo: PM }));
-    bad = rows.filter((r) => r['점검작업상태'] !== '작업발행');
-    const expectN = all.filter((r) => r['점검작업상태'] === '작업발행').length;
-    log.push(`② 예방작업번호 ${PM} + 점검작업상태 작업발행: ${rows.length}행 (예방작업번호만 검색한 ${all.length}행 중 작업발행 ${expectN}), 다른 상태 ${bad.length}`);
-    expect.soft(rows.length).toBe(expectN);
-    expect.soft(bad.length).toBe(0);
-    note(log.join('\n'));
-  });
-
-  test('AP591_TC_007 정기점검실행 전체를 검색한다.', async ({ page }) => {
-    const f1 = await searchCond(page, { pmNo: PM, from: today(), to: dateAfter(30) });
-    const part = await listGrid(f1).total();
-    const f2 = await searchCond(page, { pmNo: '', from: today(), to: dateAfter(30) });
-    const all = await listGrid(f2).total();
-    const n = (await listGrid(f2).rows()).length;
-    note(`같은 기간(${today()}~${dateAfter(30)}) 예방작업번호 ${PM} ${part?.all}건 → 조건 없이 Total ${all?.loaded}/${all?.all} (처음 불러온 행 ${n})`);
-    expect.soft(all?.loaded).toBe(n);
-    expect(all?.all ?? 0).toBeGreaterThan(part?.all ?? 0);
-  });
-
-  test('AP591_TC_008 검색 결과가 없는 조건으로 검색한다.', async ({ page }) => {
-    const errors: string[] = [];
-    page.on('pageerror', (e) => errors.push(e.message));
-    const f = await searchCond(page, { pmNo: '99999999' });
-    const rows = await listGrid(f).rows();
-    const t = await listGrid(f).total();
-    note(`예방작업번호 99999999: ${rows.length}행, Total ${t?.loaded}/${t?.all}, 스크립트 에러 ${errors.length}건`);
-    expect(rows.length).toBe(0);
-    expect(t?.all ?? 0).toBe(0);
-    expect(errors).toEqual([]);
   });
 
   test('AP591_TC_009 월간 카렌다의 일별 건수를 확인한다.', async ({ page }) => {
@@ -281,42 +113,6 @@ test.describe('AP591 정기점검실행 (조회)', () => {
     note(log.join('\n'));
   });
 
-  test('AP591_TC_011 조회된 목록을 정렬한다.', async ({ page }) => {
-    test.setTimeout(300_000);
-    const log: string[] = [];
-    const byCode = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
-    const sorted = (a: string[], dir: 1 | -1) => [byCode, (x: string, y: string) => x.localeCompare(y, 'ko')].some((cmp) => a.every((v, i) => i === 0 || dir * cmp(a[i - 1], v) <= 0));
-    for (const k of ['cal', 'cond'] as TabKey[]) {
-      let f: Frame;
-      if (k === 'cond') f = await searchCond(page, { pmNo: PM });
-      else { f = await searchCal(page, {}); await clickCalendar(page, f, (await calendarCells(f)).findIndex((c) => c.t > 0), 'T'); }
-      for (const col of ['점검일자', '점검명']) {
-        const header = f.locator('div.gridbox:visible .hdrcell', { hasText: new RegExp(`^\\s*${col.replace(/[[\]]/g, '\\$&')}\\s*$`) }).first();
-        await header.click(); await settle(page, 1500);
-        const a = (await listGrid(f).rows()).map((r) => r[col]);
-        await header.click(); await settle(page, 1500);
-        const b = (await listGrid(f).rows()).map((r) => r[col]);
-        const asc = sorted(a, 1), desc = sorted(b, -1);
-        log.push(`${TAB[k].name} ${col} 1회: ${a.slice(0, 3).join(', ')} (오름차순 ${asc}) / 2회: ${b.slice(0, 3).join(', ')} (내림차순 ${desc})`);
-        expect.soft(asc && desc, `${TAB[k].name} ${col} 오름차순 → 내림차순`).toBe(true);
-      }
-    }
-    note(log.join('\n'));
-  });
-
-  test('AP591_TC_012 목록 건수 표시를 확인한다.', async ({ page }) => {
-    test.setTimeout(240_000);
-    const f = await searchCond(page, { pmNo: '', from: today(), to: dateAfter(2) });
-    const t1 = await listGrid(f).total();
-    const n1 = (await listGrid(f).rows()).length;
-    const all = await loadAll(page, f);
-    const t2 = await listGrid(f).total();
-    note(`${today()}~${dateAfter(2)} 전체: 처음 Total ${t1?.loaded}/${t1?.all} (행 ${n1}) → 끝까지 스크롤 Total ${t2?.loaded}/${t2?.all} (행 ${all.length})`);
-    expect.soft(t1?.loaded).toBe(n1);
-    expect.soft(t2?.loaded).toBe(t2?.all);
-    expect.soft(all.length).toBe(t1?.all);
-  });
-
   test('AP591_TC_013 (행 클릭) 조회된 데이터의 상세정보를 조회한다.', async ({ page }) => {
     const log: string[] = [];
     for (const k of ['cond', 'cal'] as TabKey[]) {
@@ -351,22 +147,6 @@ test.describe('AP591 정기점검실행 (조회)', () => {
     note(`행(${row['점검일자']} ${row['점검명']}) 상세보기 → 새 창 열림. 하단 상세 ${JSON.stringify(below)} / 팝업 ${JSON.stringify(pop)}`);
     expect(pop).toEqual(below);
     await win.close();
-  });
-
-  test('AP591_TC_015 목록과 상세의 값이 일치하는지 확인한다.', async ({ page }) => {
-    const { d, row } = await openWork(page);
-    const pairs: [string, string][] = [
-      ['점검일자', 'wkorDate'], ['점검명', 'pmiDesc'], ['설비명', 'equipDesc'], ['부서', 'deptDesc'], ['담당자', 'empDesc'],
-      ['점검작업상태', 'pmschedStatusDesc'], ['점검시작일자', 'startDate'], ['점검시작시간', 'startTime'], ['점검종료일자', 'endDate'],
-      ['점검종료시간', 'endTime'], ['점검시간[분]', 'workTime'], ['설비위치', 'eqLocDesc'], ['작업형태', 'pmTypeDesc'], ['비고', 'remark'],
-    ];
-    const diff: string[] = [];
-    for (const [col, id] of pairs) {
-      const dv = await val(d, id);
-      if ((row[col] ?? '') !== dv) diff.push(`${col}: 목록="${row[col]}" 상세="${dv}"`);
-    }
-    note(diff.length ? `${diff.join('\n')}` : `${pairs.length}개 항목 모두 일치 (${row['점검일자']} ${row['점검명']})`);
-    expect(diff).toEqual([]);
   });
 
   test('AP591_TC_016 (목록) 데이터 표시 형식을 확인한다.', async ({ page }) => {
@@ -429,30 +209,6 @@ test.describe('AP591 정기점검실행 (조회)', () => {
     note(log.join(', '));
   });
 
-  test('AP591_TC_018 읽기전용 필드를 확인한다.', async ({ page }) => {
-    const { d } = await openWork(page);
-    const ids = ['pminslistId', 'pmschedStatusDesc', 'woTypeDesc', 'pmTypeDesc', 'equipDesc', 'eqLocDesc', 'workTime'];
-    const bad: string[] = [];
-    for (const id of ids) {
-      const ro = await d.locator(`[id="${P}.${id}"]`).evaluate((e) => (e as HTMLInputElement).readOnly || (e as HTMLInputElement).disabled);
-      if (!ro) bad.push(id);
-    }
-    const editable = await d.evaluate((p) => [...document.querySelectorAll<HTMLInputElement>(`input[id^="${p}."], textarea[id^="${p}."]`)].filter((e) => e.offsetWidth > 0 && !(e.readOnly || e.disabled)).map((e) => e.id.split('.')[1]), P);
-    note(`읽기전용이어야 할 ${ids.length}칸 중 수정 가능 ${bad.join(', ') || '없음'} / 수정 가능한 칸: ${editable.join(', ')}`);
-    expect(bad).toEqual([]);
-  });
-
-  test('AP591_TC_019 상세페이지를 닫는다.', async ({ page }) => {
-    const { d } = await openWork(page);
-    const title = d.getByText(/정기점검실행\s*:/).first();
-    await expect(title).toBeVisible();
-    await d.locator('a.b_close:visible').first().click({ timeout: 5_000 });
-    await settle(page, 1000);
-    const open = await title.isVisible().catch(() => false);
-    note(`하단 상세의 닫기(ⓧ) 클릭 → 상세 ${open ? '그대로 보임' : '닫힘'}`);
-    expect(open).toBe(false);
-  });
-
   test('AP591_TC_020 (팝업창) 상세페이지를 닫는다.', async ({ page }) => {
     const { f } = await openWork(page);
     const winP = page.context().waitForEvent('page', { timeout: 15_000 });
@@ -471,33 +227,6 @@ test.describe('AP591 정기점검실행 (조회)', () => {
     const closed = await closedP;
     note(`상세보기 팝업 창: 닫기 버튼 후보 [${closeBtns.join(', ') || '없음'}] → ${how} → ${closed || win.isClosed() ? '닫힘' : '안 닫힘'}`);
     expect(closed || win.isClosed()).toBe(true);
-  });
-
-  test('AP591_TC_023 목록에 조회된 데이터를 Excel 다운로드한다.', async ({ page }) => {
-    test.setTimeout(300_000);
-    const log: string[] = [];
-    const xlsx = await import('fs');
-    for (const k of ['cal', 'cond'] as TabKey[]) {
-      let f: Frame;
-      if (k === 'cond') f = await searchCond(page, { pmNo: PM });
-      else { f = await searchCal(page, { pmNo: PM }); await clickCalendar(page, f, (await calendarCells(f)).findIndex((c) => c.t > 0), 'T'); }
-      const t = await listGrid(f).total();
-      const winP = page.context().waitForEvent('page', { timeout: 15_000 }).catch(() => null);
-      const dlP = page.waitForEvent('download', { timeout: 60_000 }).catch(() => null);
-      // 카렌다(월간)은 검색 영역에 Setting, 목록 영역에 Excel 이 있음
-      await clickButton(f, 'Excel');
-      const win = await winP;
-      const file = win ? await win.waitForEvent('download', { timeout: 60_000 }).catch(() => null) : await dlP;
-      if (!file) { log.push(`${TAB[k].name}: 파일 안 받아짐`); expect.soft(file, `${TAB[k].name} Excel`).toBeTruthy(); continue; }
-      const saved = test.info().outputPath(`${k}-${file.suggestedFilename()}`);
-      await file.saveAs(saved);
-      log.push(`${TAB[k].name}: "${file.suggestedFilename()}" ${xlsx.statSync(saved).size.toLocaleString()} bytes (목록 Total ${t?.all})`);
-      expect.soft(xlsx.statSync(saved).size).toBeGreaterThan(0);
-      fs.mkdirSync('playwright/.data/ap591-excel', { recursive: true });
-      fs.copyFileSync(saved, `playwright/.data/ap591-excel/${k}-${file.suggestedFilename()}`);
-      await win?.close();
-    }
-    note(log.join('\n'));
   });
 
   // ---- 점검항목 탭 ----
