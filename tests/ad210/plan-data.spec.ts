@@ -329,14 +329,6 @@ test.describe('AD210 정기점검계획 (계획 추가·수정·확정·삭제)'
     note(log.join('\n'));
   });
 
-  test('AD210_TC_025 선택 없이 삭제한다. (체크X)', async ({ page }) => {
-    const { f } = await myPlans(page);
-    await clickButton(f, '삭제');
-    const msg = await okAndMessage(page);
-    note(`체크 없이 삭제: ${msg}`);
-    expect(msg).toMatch(/선택.*없/);
-  });
-
   test('AD210_TC_024 선택한 작업계획을 삭제한다. (체크O)', async ({ page }) => {
     const d1 = state.d1;
     const log: string[] = [];

@@ -56,6 +56,61 @@ export interface HeaderTarget {
   detail?: { open: (page: Page) => Promise<Frame>; name: string; before: string }; // 편집모드로 옮겨 볼 상세 필드
 }
 
+/** 공통 화면 케이스 (검색·목록·상세). tests/common/screen.spec.ts 가 이 순서로 만듭니다. */
+export type ViewCase =
+  | 'defaults' | 'lovOrigin' | 'lovs' | 'searchOne' | 'searchCombo' | 'searchAll' | 'searchNone'
+  | 'sort' | 'total' | 'rowDetail' | 'popupDetail' | 'excel' | 'listDetail' | 'listFormat' | 'readonly' | 'close' | 'deleteNone';
+
+export type Row = Record<string, string>;
+
+/** 검색 조건 하나: 목록 첫 행(pickRow)의 값으로 검색해 그 열이 맞는지 봅니다 */
+export interface SearchCond {
+  id: string;                                // 검색 칸 ID (DTO 뒤 부분, 예: pmNo)
+  col: string;                               // 결과를 비교할 목록 열
+  value: (row: Row) => string;               // 넣을 값
+  lov?: string;                              // 돋보기(Lov)에서 고르기: Lov 안 검색 칸 이름 ('' 이면 첫 화면에서 고름)
+  tree?: boolean;                            // 트리형 Lov (펼쳐서 고름)
+  words?: boolean;                           // 띄어쓰기 단어마다 포함되면 일치 (작업명 등)
+  preset?: boolean;                          // 기본값으로 이미 들어 있는 조건 (넣지 않고 결과만 비교)
+}
+
+/** 검색·목록·상세 공통 케이스 대상 */
+export interface ViewTarget {
+  ids: Partial<Record<ViewCase, string>>;    // 공통 케이스 → 이 메뉴의 테스트ID (없는 케이스는 만들지 않음)
+  open: (page: Page) => Promise<Frame>;      // 메뉴를 열고 목록 프레임 (기본 검색 상태)
+  search?: (page: Page, f: Frame) => Promise<void>; // 검색 버튼 (기본: b_search)
+  dto: string;                               // 검색 칸 DTO (예: maPmMstrCommonDTO)
+  key: string;                               // 목록 그리드를 찾을 열 이름
+  rows?: (page: Page) => Promise<Frame>;     // 비교에 쓸 행이 있는 목록 (기본: open)
+  pickRow?: (rows: Row[]) => Row;            // 비교에 쓸 행 (기본: 첫 행)
+  /** 기본값: 비어 있어야 할 칸 / 값이 있어야 할 칸 (open 이 조건을 넣는 메뉴는 기본 화면을 여는 함수를 따로) */
+  defaults: { empty: string[] | 'all'; values?: Record<string, string | RegExp>; open?: (page: Page) => Promise<Frame> }; // 'all' = values 밖의 보이는 검색 칸 모두
+  lovOrigin?: { id: string; menu: string[]; frame: string; header: string }; // Lov 건수 = 원본 메뉴 건수
+  lovs?: [string, string, ((page: Page) => Promise<Frame>)?][]; // [이름, 칸 ID, 다른 탭이면 여는 함수] Lov 가 열리고 데이터가 있는지 (칸 ID 에 점이 있으면 DTO 포함)
+  conds: SearchCond[];                       // 조건 하나씩
+  combos?: SearchCond[][];                   // 조합
+  clearAll: string[];                        // 전체 검색할 때 비울 칸 (기본값이 들어 있는 칸)
+  none: { id: string; value: string };       // 결과 없는 검색
+  /** 같은 행으로 볼지 (예: 설비 조건은 그 주기의 다른 설비 행도 일치) */
+  sameAs?: (rows: Row[], row: Row, cond: SearchCond, value: string) => boolean;
+  sort: { col: string; numeric?: boolean };
+  /** 행 클릭 상세 */
+  detail?: {
+    click: string;                           // 클릭할 열
+    frame: string | RegExp;                  // 상세 프레임
+    title: (row: Row) => RegExp;             // 상세 제목
+    popupTitle?: (row: Row) => RegExp;       // 상세보기 새 창 제목
+    dto: string;                             // 상세 칸 DTO
+    pairs: [string, string][];               // [목록 열, 상세 칸 ID] 값 비교
+    readonly: string[];                      // 읽기전용이어야 할 상세 칸 ID
+  };
+  format?: [string, RegExp, string][];       // [목록 열, 형식, 설명]
+  deleteConfirm?: 'ok' | 'cancel';           // 체크 없이 삭제: 확인창이 뜨면 OK 후 안내를 볼지(ok), 안내만 보고 Cancel 할지(기본)
+  /** 공통 케이스 뒤에 이 메뉴에만 있는 확인을 덧붙임 (같은 테스트ID 안에서) */
+  extra?: Partial<Record<ViewCase, (page: Page) => Promise<void>>>;
+  timeout?: number;
+}
+
 export interface Screen {
   code: string;                              // 메뉴 코드 (AD230)
   name: string;                              // 메뉴 이름
@@ -64,4 +119,5 @@ export interface Screen {
   lists: ListTarget[];
   tabs: TabTarget[];
   header?: HeaderTarget;
+  view?: ViewTarget;
 }

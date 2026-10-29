@@ -42,7 +42,10 @@ if ($Steps -contains 'data' -and $Steps -contains 'complete') {
 
 foreach ($s in $Steps) {
     switch ($s) {
-        'view'     { Run-Step 'view' 'ad230/pmi-cycle.spec' }
+        'view'     {
+            Run-Step 'view-common' 'common/screen'   # 검색·목록·상세 공통 케이스 (화면 정의 tests/screens)
+            Run-Step 'view' 'ad230/pmi-cycle.spec'
+        }
         'setting'  { Run-Step 'setting' 'common/setting' }   # Setting 바꿔 보고 원래 값으로 되돌림 (약 8분)
         'data'     {
             # 순서가 필요한 흐름이라 묶음으로 나눠 위에서부터 차례대로
@@ -50,7 +53,7 @@ foreach ($s in $Steps) {
             Run-Step 'data2' 'ad230/pmi-cycle-data' 'TC_032|TC_033|EC_014|TC_034|TC_038|TC_039|TC_040|TC_041'
             Run-Step 'data3' 'ad230/pmi-cycle-data' 'TC_042|TC_037|TC_035'
             Run-Step 'data4' 'ad230/pmi-cycle-data' 'TC_027|EC_009|EC_015|TC_028'
-            Run-Step 'data5' 'ad230/pmi-cycle-data' 'EC_011|EC_013|EC_008|TC_024'
+            Run-Step 'data5' 'ad230/pmi-cycle-data' 'EC_011|EC_013|EC_008'
         }
         'extra'    { Run-Step 'extra' 'ad230/pmi-cycle-extra' }
         'complete' { Run-Step 'complete' 'ad230/pmi-cycle-complete' }

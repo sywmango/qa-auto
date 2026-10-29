@@ -3,35 +3,14 @@ import fs from 'fs';
 import { openMenu, waitFrame, clickButton, fieldValue, settle, Grid, openLov, lovTotal, pickInLov, visibleTreeNodes } from '../support/dream';
 import { put, dateAfter, closeLov } from '../support/form';
 import { TAB, TabKey, openTab, listGrid, search, searchPeriod, loadAll, clickRow, detailOf, findPlan, isDate, note, pmiDetailFrame } from '../support/pmplan';
+import { SY, ym, calendarCells, setReadonly, clickCalendar } from '../support/pmplan-view';
 
 // 작업관리 > 정기점검작업 > 정기점검계획 (AD210) — 조회만 하는 케이스 (데이터를 만들거나 바꾸지 않음)
 // 테스트 제목 앞 번호 = docs\AD210\AD210_UT_정기점검계획_양식.xlsx 의 테스트ID
 // 비교용 데이터는 [sychoi] 주기의 계획 (작업명 검색 '[sychoi]')
+// 검색·목록·상세 공통 케이스(TC_001~007, 011~013, 015, 016, 019, 025, 026)는 tests/common/screen.spec.ts (화면 정의 tests/screens/ad210.ts)
 
-const SY = '[sychoi]';
 const today = () => dateAfter(0);
-const ym = (d: string) => d.slice(0, 7);
-
-/** 카렌다 칸의 P/S/C 숫자와 링크 인자. 연간은 월 13칸(마지막 = 계), 월간은 날짜 칸 */
-async function calendarCells(f: Frame) {
-  return f.evaluate(() =>
-    [...document.querySelectorAll<HTMLElement>('span.p')].filter((s) => s.offsetWidth > 0).map((p) => {
-      const box = p.parentElement!;
-      const num = (cls: string) => Number((box.querySelector(`span.${cls}`)?.textContent || '').replace(/[^\d]/g, '') || 0);
-      const href = p.querySelector('a')?.getAttribute('href') || '';
-      const day = box.parentElement?.querySelector('.date_box')?.textContent?.trim() || '';
-      return { p: num('p'), s: num('s'), c: num('c'), href, day };
-    }),
-  );
-}
-
-/** 읽기전용(달력 선택) 칸에 값 넣기: 화면의 년월 선택기 대신 값과 change 이벤트 */
-async function setReadonly(f: Frame, id: string, value: string) {
-  await f.locator(`[id="${id}"]`).evaluate((e, v) => {
-    (e as HTMLInputElement).value = v;
-    e.dispatchEvent(new Event('change', { bubbles: true }));
-  }, value);
-}
 
 /** 점검작업 상세의 하위 탭 클릭 (탭 글자 예: "표준작업1"). 탭 목록 프레임이 보일 때까지 */
 async function openSubTab(page: Page, d: Frame, tab: string) {
@@ -40,165 +19,7 @@ async function openSubTab(page: Page, d: Frame, tab: string) {
   await settle(page, 1000);
 }
 
-/** 카렌다 칸 숫자 클릭 (cls: p/s/c, i: 몇 번째 칸) */
-async function clickCalendar(page: Page, f: Frame, i: number, cls: 'p' | 's' | 'c') {
-  await f.locator(`span.${cls}:visible a`).nth(i).click();
-  await settle(page, 2500);
-}
-
 test.describe('AD210 정기점검계획 (조회)', () => {
-  test('AD210_TC_001 검색 필드의 기본값을 확인한다.', async ({ page }) => {
-    const log: string[] = [];
-    for (const k of ['year', 'month', 'period'] as TabKey[]) {
-      const f = await openTab(page, k);
-      const vals = await f.evaluate((dto) => [...document.querySelectorAll<HTMLInputElement>(`input[id^="${dto}."]`)].filter((e) => e.offsetWidth > 0).map((e) => [e.id.split('.')[1], e.value] as [string, string]), TAB[k].dto);
-      const map = Object.fromEntries(vals);
-      const dateKeys = ['filterYear', 'filterYyyymm', 'filterStartDate', 'filterEndDate'];
-      const filled = vals.filter(([id, v]) => v && !dateKeys.includes(id));
-      log.push(`${TAB[k].name}: ${vals.filter(([id]) => dateKeys.includes(id)).map(([id, v]) => `${id}=${v}`).join(', ')}, 그 외 값 있는 칸 ${filled.length}개${filled.length ? ` (${filled.map(([i, v]) => `${i}=${v}`).join(', ')})` : ''}`);
-      if (k === 'year') expect.soft(map.filterYear, '년 = 올해').toBe(today().slice(0, 4));
-      if (k === 'month') expect.soft(map.filterYyyymm, '년월 = 이번 달').toBe(ym(today()));
-      if (k === 'period') {
-        expect.soft(isDate(map.filterStartDate) && isDate(map.filterEndDate), '일정조정 일자 기본 기간').toBe(true);
-        expect.soft(map.filterEndDate >= map.filterStartDate, '기간 시작 ≤ 끝').toBe(true);
-      }
-      expect.soft(filled.length, `${TAB[k].name} 나머지 칸 비어 있음`).toBe(0);
-    }
-    note(log.join('\n'));
-  });
-
-  test('AD210_TC_002 설비 Lov 팝업의 데이터를 확인한다.', async ({ page, context }) => {
-    test.setTimeout(180_000);
-    const log: string[] = [];
-    const p2 = await context.newPage();
-    await openMenu(p2, ['114', '447']);
-    const ef = await waitFrame(p2, 'tabFrameTAB.assetMstrLoc_assetMstr');
-    const eqTotal = (await new Grid(ef, '설비번호').total())?.all;
-    await p2.close();
-    for (const k of ['year', 'period'] as TabKey[]) {
-      const f = await openTab(page, k);
-      const lov = await openLov(page, f, `${TAB[k].dto}.filterEquipDesc`);
-      const n = await lovTotal(lov);
-      log.push(`${TAB[k].name} 설비 Lov ${n}건`);
-      expect.soft(n, `${TAB[k].name} 설비 Lov 건수 = 설비 메뉴 건수`).toBe(eqTotal);
-    }
-    note(`${log.join(', ')} / 설비 메뉴 ${eqTotal}건`);
-  });
-
-  test('AD210_TC_003 그 외 검색 필드 Lov 팝업의 데이터를 확인한다.', async ({ page }) => {
-    test.setTimeout(600_000);
-    const sets: [TabKey, string, string][] = [
-      ['year', '공장명', 'filterPlantDesc'], ['year', '부서', 'filterDeptDesc'], ['year', '작업그룹명', 'filterWkCtrDesc'],
-      ['year', '담당자', 'filterEmpDesc'], ['year', '계획거래처', 'filterPlanVendorDesc'], ['year', '설비위치', 'filterEqLocDesc'], ['year', '설비종류', 'filterEqCtgDesc'],
-      ['period', '부서(실행)', 'filterExeDeptDesc'], ['period', '담당자(실행)', 'filterExeEmpDesc'], ['period', '법정설비여부', 'filterIsLawEq'],
-      ['period', '관리자(정)', 'filterMainMngName'], ['period', '관리자(부)', 'filterSubMngName'], ['period', '설비유형', 'filterEqCtgTypeDesc'], ['period', '사용부서', 'filterUsageDeptDesc'],
-    ];
-    const log: string[] = [];
-    for (const [k, label, id] of sets) {
-      const f = await openTab(page, k);
-      try {
-        const lov = await openLov(page, f, `${TAB[k].dto}.${id}`);
-        const n = await lovTotal(lov);
-        const nodes = n ? 0 : (await visibleTreeNodes(lov)).length;
-        log.push(`${label}: ${n ?? 0}건${nodes ? ` (트리 ${nodes}개)` : ''}`);
-        expect.soft((n ?? 0) + nodes, `${label} Lov 에 데이터가 있어야 함`).toBeGreaterThan(0);
-        await closeLov(page);
-      } catch {
-        log.push(`${label}: 팝업 열기 실패`);
-        expect.soft(false, `${label} Lov 팝업이 열려야 함`).toBe(true);
-      }
-    }
-    note(log.join(', '));
-  });
-
-  test('AD210_TC_004 조건 하나로 정기점검계획을 검색한다.', async ({ page }) => {
-    test.setTimeout(300_000);
-    const base = (await findPlan(page, '작업계획')).row;
-    const log: string[] = [];
-    const check = async (where: string, f: Frame, col: string, value: string) => {
-      const rows = await loadAll(page, f);
-      const t = await listGrid(f).total();
-      const words = col === '작업명' ? value.split(/\s+/) : [value];
-      const bad = rows.filter((r) => !words.every((w) => (r[col] || '').includes(w)));
-      log.push(`${where} ${col}="${value}": ${rows.length}행, Total ${t?.loaded}/${t?.all}, 불일치 ${bad.length}`);
-      expect.soft(rows.length, `${where} ${col} 결과 있음`).toBeGreaterThan(0);
-      expect.soft(bad.length, `${where} ${col} 조건과 다른 행 없음`).toBe(0);
-      expect.soft(t?.all, `${where} Total = 행 수`).toBe(rows.length);
-    };
-    // 목록(조건)
-    let f = await searchPeriod(page, { pmNo: base['예방작업번호'] });
-    await check('목록(조건)', f, '예방작업번호', base['예방작업번호']);
-    f = await searchPeriod(page, { pmDesc: base['작업명'] });
-    await check('목록(조건)', f, '작업명', base['작업명']);
-    f = await openTab(page, 'period');
-    await put(f.locator(`[id="${TAB.period.dto}.filterStartDate"]`), dateAfter(-60));
-    await put(f.locator(`[id="${TAB.period.dto}.filterEndDate"]`), dateAfter(400));
-    await pickInLov(page, await openLov(page, f, `${TAB.period.dto}.filterEquipDesc`), base['설비번호'], '설비번호');
-    await search(page, f);
-    await check('목록(조건)', f, '설비', base['설비']);
-    // 카렌다(연간), 카렌다(월간): 예방작업번호
-    for (const k of ['year', 'month'] as TabKey[]) {
-      f = await openTab(page, k);
-      if (k === 'month') await setReadonly(f, `${TAB.month.dto}.filterYyyymm`, ym(base['일정조정']));
-      await f.locator(`[id="${TAB[k].dto}.filterPmNo"]`).fill(base['예방작업번호']);
-      await search(page, f);
-      const cells = await calendarCells(f);
-      // 목록은 카렌다 숫자를 누르면 나옴 → 계획이 있는 첫 칸
-      const i = cells.findIndex((c) => c.p > 0);
-      if (i < 0) { log.push(`${TAB[k].name}: 카렌다에 계획 없음`); expect.soft(i, `${TAB[k].name} 카렌다 계획 있음`).toBeGreaterThanOrEqual(0); continue; }
-      await clickCalendar(page, f, i, 'p');
-      await check(TAB[k].name, f, '예방작업번호', base['예방작업번호']);
-    }
-    note(log.join('\n'));
-  });
-
-  test('AD210_TC_005 여러 조건을 조합하여 검색한다.', async ({ page }) => {
-    test.setTimeout(240_000);
-    const base = (await findPlan(page, '작업계획')).row;
-    const log: string[] = [];
-    // ① 작업명 + 예방작업번호
-    let f = await searchPeriod(page, { pmDesc: SY, pmNo: base['예방작업번호'] });
-    let rows = await loadAll(page, f);
-    let bad = rows.filter((r) => r['예방작업번호'] !== base['예방작업번호'] || !r['작업명'].includes(SY));
-    log.push(`① 작업명 "${SY}" + 예방작업번호 ${base['예방작업번호']}: ${rows.length}행, 불일치 ${bad.length}`);
-    expect.soft(rows.length).toBeGreaterThan(0);
-    expect.soft(bad.length).toBe(0);
-    // ② 예방작업번호 + 설비
-    f = await openTab(page, 'period');
-    await put(f.locator(`[id="${TAB.period.dto}.filterStartDate"]`), dateAfter(-60));
-    await put(f.locator(`[id="${TAB.period.dto}.filterEndDate"]`), dateAfter(400));
-    await f.locator(`[id="${TAB.period.dto}.filterPmNo"]`).fill(base['예방작업번호']);
-    await pickInLov(page, await openLov(page, f, `${TAB.period.dto}.filterEquipDesc`), base['설비번호'], '설비번호');
-    await search(page, f);
-    rows = await loadAll(page, f);
-    bad = rows.filter((r) => r['예방작업번호'] !== base['예방작업번호'] || r['설비'] !== base['설비']);
-    log.push(`② 예방작업번호 ${base['예방작업번호']} + 설비 "${base['설비']}": ${rows.length}행, 불일치 ${bad.length}`);
-    expect.soft(rows.length).toBeGreaterThan(0);
-    expect.soft(bad.length).toBe(0);
-    note(log.join('\n'));
-  });
-
-  test('AD210_TC_006 정기점검계획 전체를 검색한다.', async ({ page }) => {
-    const f1 = await searchPeriod(page, { pmDesc: SY, from: today(), to: dateAfter(30) });
-    const part = await listGrid(f1).total();
-    const f2 = await searchPeriod(page, { pmDesc: '', from: today(), to: dateAfter(30) });
-    const all = await listGrid(f2).total();
-    note(`같은 기간(${today()}~${dateAfter(30)}) 작업명 "${SY}" ${part?.all}건 → 조건 없이 ${all?.all}건`);
-    expect(all?.all ?? 0).toBeGreaterThan(part?.all ?? 0);
-  });
-
-  test('AD210_TC_007 검색 결과가 없는 조건으로 검색한다.', async ({ page }) => {
-    const errors: string[] = [];
-    page.on('pageerror', (e) => errors.push(e.message));
-    const f = await searchPeriod(page, { pmDesc: '존재하지않는작업명_ZZ9' });
-    const rows = await listGrid(f).rows();
-    const t = await listGrid(f).total();
-    note(`${rows.length}행, Total ${t?.loaded}/${t?.all}, 스크립트 에러 ${errors.length}건`);
-    expect(rows.length).toBe(0);
-    expect(t?.all).toBe(0);
-    expect(errors).toEqual([]);
-  });
-
   test('AD210_TC_008 연간 카렌다의 월별 건수를 확인한다.', async ({ page }) => {
     test.setTimeout(600_000);
     const f = await openTab(page, 'year');
@@ -309,50 +130,6 @@ test.describe('AD210 정기점검계획 (조회)', () => {
     note(log.join('\n'));
   });
 
-  test('AD210_TC_011 조회된 목록을 정렬한다.', async ({ page }) => {
-    test.setTimeout(300_000);
-    const log: string[] = [];
-    for (const k of ['period', 'loc'] as TabKey[]) {
-      const f = k === 'period' ? await searchPeriod(page, { pmDesc: SY }) : await openTab(page, k);
-      const header = f.locator('div.gridbox:visible .hdrcell', { hasText: /^\s*예방작업번호\s*$/ }).first();
-      await header.click(); await settle(page, 1500);
-      const a = (await listGrid(f).rows()).map((r) => Number(r['예방작업번호']));
-      await header.click(); await settle(page, 1500);
-      const b = (await listGrid(f).rows()).map((r) => Number(r['예방작업번호']));
-      const asc = a.every((v, i) => i === 0 || a[i - 1] <= v);
-      const desc = b.every((v, i) => i === 0 || b[i - 1] >= v);
-      log.push(`${TAB[k].name} 예방작업번호 1회: ${a.slice(0, 5).join(',')} (오름차순 ${asc}) / 2회: ${b.slice(0, 5).join(',')} (내림차순 ${desc})`);
-      expect.soft(asc && desc, `${TAB[k].name} 오름차순 → 내림차순`).toBe(true);
-    }
-    note(log.join('\n'));
-  });
-
-  test('AD210_TC_012 목록 건수 표시를 확인한다.', async ({ page }) => {
-    test.setTimeout(240_000);
-    const f = await searchPeriod(page, { pmDesc: SY });
-    const t1 = await listGrid(f).total();
-    const n1 = (await listGrid(f).rows()).length;
-    const all = await loadAll(page, f);
-    const t2 = await listGrid(f).total();
-    note(`처음 Total ${t1?.loaded}/${t1?.all} (행 ${n1}) → 끝까지 스크롤 Total ${t2?.loaded}/${t2?.all} (행 ${all.length})`);
-    expect.soft(t1?.loaded).toBe(n1);
-    expect.soft(t2?.loaded).toBe(t2?.all);
-    expect.soft(all.length).toBe(t1?.all);
-  });
-
-  test('AD210_TC_013 (행 클릭) 작업계획 상태의 상세를 조회한다.', async ({ page }) => {
-    const { f, idx, row } = await findPlan(page, '작업계획');
-    expect(idx, '[sychoi] 작업계획 계획이 있어야 함').toBeGreaterThanOrEqual(0);
-    await clickRow(f, idx);
-    const d = await detailOf(page, 'period', 'plan');
-    const text = await d.evaluate(() => document.body.innerText);
-    const title = text.match(/예방작업번호\s*:\s*(\d+)\s*\/\s*([^\n]*?)\s*저장/);
-    const date = await fieldValue(d, 'workCalPmRInsPeriodDetailDTO.schedDate');
-    note(`행(${row['예방작업번호']}, ${row['일정조정']}, 작업계획) 클릭 → 상세 제목 "예방작업번호 : ${title?.[1]} / ${title?.[2]}", 작업일자 ${date}`);
-    expect.soft(title?.[1]).toBe(row['예방작업번호']);
-    expect.soft(date).toBe(row['일정조정']);
-  });
-
   test('AD210_TC_014 (행 클릭) 작업발행·작업완료 상태의 상세를 조회한다.', async ({ page }) => {
     test.setTimeout(180_000);
     const log: string[] = [];
@@ -370,69 +147,6 @@ test.describe('AD210 정기점검계획 (조회)', () => {
       expect.soft(vals.설비, '설비 = 목록').toBe(row['설비']);
       for (const t of ['점검항목', '표준작업', '첨부문서']) expect.soft(tabs.some((x) => x.startsWith(t)), `하위 탭 ${t}`).toBe(true);
     }
-    note(log.join('\n'));
-  });
-
-  test('AD210_TC_015 목록과 상세의 값이 일치하는지 확인한다.', async ({ page }) => {
-    const { f, idx, row } = await findPlan(page, '작업계획');
-    await clickRow(f, idx);
-    const d = await detailOf(page, 'period', 'plan');
-    const pairs: [string, string][] = [
-      ['일정조정', 'schedDate'], ['예방작업번호', 'pmNo'], ['작업명', 'pmDesc'], ['설비', 'equipDesc'], ['부서(계획)', 'deptDesc'],
-      ['담당자(계획)', 'empDesc'], ['일정생성방법', 'scheduleTypeDesc'], ['비고', 'remark'],
-    ];
-    const diff: string[] = [];
-    for (const [col, id] of pairs) {
-      const dv = await fieldValue(d, `workCalPmRInsPeriodDetailDTO.${id}`);
-      if ((row[col] ?? '') !== dv) diff.push(`${col}: 목록="${row[col]}" 상세="${dv}"`);
-    }
-    // 주기: 목록 "2M" ↔ 상세 주기 2 + 주기구분 월
-    const cyc = await fieldValue(d, 'workCalPmRInsPeriodDetailDTO.cycle');
-    const pt = await fieldValue(d, 'workCalPmRInsPeriodDetailDTO.periodTypeDesc');
-    const unit: Record<string, string> = { D: '일', W: '주', M: '월', Y: '년' };
-    const m = (row['주기'] || '').match(/^(\d+)([A-Z])$/);
-    if (!m || m[1] !== cyc || !pt.startsWith(unit[m[2]] ?? '?')) diff.push(`주기: 목록="${row['주기']}" 상세="${cyc} ${pt}"`);
-    note(diff.length ? diff.join('\n') : `${pairs.length + 1}개 항목 모두 일치 (예방작업번호 ${row['예방작업번호']}, ${row['일정조정']})`);
-    expect(diff).toEqual([]);
-  });
-
-  test('AD210_TC_016 (목록) 데이터 표시 형식을 확인한다.', async ({ page }) => {
-    test.setTimeout(300_000);
-    const log: string[] = [];
-    const statusNames = /^(작업계획|작업발행|작업완료|작업중|결재요청중|임원확인중|)$/;
-    const checkRows = (where: string, rows: Record<string, string>[]) => {
-      const bad: string[] = [];
-      for (const col of ['초기계획', '일정조정', '작업일자', '완료일자']) {
-        const wrong = rows.filter((r) => r[col] && !isDate(r[col]));
-        if (wrong.length) bad.push(`${col} ${wrong.length}건 (예: ${wrong[0][col]})`);
-      }
-      const st = rows.filter((r) => r['일정상태'] !== undefined && !statusNames.test(r['일정상태']));
-      if (st.length) bad.push(`일정상태 코드로 표시 ${st.length}건 (예: ${st[0]['일정상태']})`);
-      const num = rows.filter((r) => r['예상작업시간(분)'] && !/^\d{1,3}(,\d{3})*$/.test(r['예상작업시간(분)']));
-      if (num.length) bad.push(`예상작업시간 숫자 형식 ${num.length}건`);
-      log.push(`${where} ${rows.length}행: ${bad.join(', ') || '이상 없음'}`);
-      expect.soft(bad, `${where} 표시 형식`).toEqual([]);
-    };
-    let f = await openTab(page, 'year');
-    await f.locator(`[id="${TAB.year.dto}.filterPmDesc"]`).fill(SY);
-    await search(page, f);
-    const ci = (await calendarCells(f)).findIndex((c) => c.c > 0);
-    await clickCalendar(page, f, ci >= 0 ? ci : 9, 'p');
-    checkRows('카렌다(연간)', await listGrid(f).rows());
-    f = await openTab(page, 'month');
-    await f.locator(`[id="${TAB.month.dto}.filterPmDesc"]`).fill(SY);
-    await search(page, f);
-    const mi = (await calendarCells(f)).findIndex((c) => c.c > 0);
-    await clickCalendar(page, f, mi >= 0 ? mi : (await calendarCells(f)).findIndex((c) => c.p > 0), 'p');
-    checkRows('카렌다(월간)', await listGrid(f).rows());
-    for (const k of ['loc', 'ctg'] as TabKey[]) {
-      f = await openTab(page, k);
-      await new Grid(f, k === 'loc' ? '위치명' : '종류명').clickCell(k === 'loc' ? '위치명' : '종류명', k === 'loc' ? '안성공장' : '믹서');
-      await settle(page, 2500);
-      checkRows(TAB[k].name, await listGrid(f).rows());
-    }
-    f = await searchPeriod(page, { pmDesc: SY });
-    checkRows('목록(조건)', await loadAll(page, f));
     note(log.join('\n'));
   });
 
@@ -481,44 +195,6 @@ test.describe('AD210 정기점검계획 (조회)', () => {
     }
     log.push(`점검작업 상세 ${ids.join(', ')} 중 수정 가능 ${pmiBad.join(', ') || '없음'}`);
     expect.soft(pmiBad, '점검작업 읽기전용').toEqual([]);
-    note(log.join('\n'));
-  });
-
-  test('AD210_TC_019 상세를 닫는다.', async ({ page }) => {
-    const p = await findPlan(page, '작업계획');
-    await clickRow(p.f, p.idx);
-    const d = await detailOf(page, 'period', 'plan');
-    const title = d.getByText(/예방작업번호\s*:/).first();
-    await expect(title).toBeVisible();
-    await d.locator('[class*="close"]:visible, [class*="Close"]:visible').first().click({ timeout: 5_000 });
-    await settle(page, 1000);
-    await expect(title).toBeHidden();
-    note('하단 일정 상세의 닫기(ⓧ) 클릭 → 상세 닫힘');
-  });
-
-  test('AD210_TC_026 목록을 Excel로 다운로드한다.', async ({ page }) => {
-    test.setTimeout(300_000);
-    const log: string[] = [];
-    for (const k of ['year', 'month', 'period'] as TabKey[]) {
-      const f = k === 'period' ? await searchPeriod(page, { pmDesc: SY }) : await openTab(page, k);
-      if (k !== 'period') {
-        await f.locator(`[id="${TAB[k].dto}.filterPmDesc"]`).fill(SY);
-        await search(page, f);
-        await clickCalendar(page, f, (await calendarCells(f)).findIndex((c) => c.p > 0), 'p');
-      }
-      const t = await listGrid(f).total();
-      const winP = page.context().waitForEvent('page', { timeout: 15_000 }).catch(() => null);
-      const dlP = page.waitForEvent('download', { timeout: 60_000 }).catch(() => null);
-      await clickButton(f, 'Excel');
-      const win = await winP;
-      const file = win ? await win.waitForEvent('download', { timeout: 60_000 }).catch(() => null) : await dlP;
-      if (!file) { log.push(`${TAB[k].name}: 파일 안 받아짐`); expect.soft(file, `${TAB[k].name} Excel`).toBeTruthy(); continue; }
-      const saved = test.info().outputPath(`${k}-${file.suggestedFilename()}`);
-      await file.saveAs(saved);
-      log.push(`${TAB[k].name}: "${file.suggestedFilename()}" ${fs.statSync(saved).size.toLocaleString()} bytes (목록 Total ${t?.all})`);
-      expect.soft(fs.statSync(saved).size).toBeGreaterThan(0);
-      await win?.close();
-    }
     note(log.join('\n'));
   });
 

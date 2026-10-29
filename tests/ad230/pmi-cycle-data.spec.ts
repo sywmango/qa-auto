@@ -564,17 +564,6 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
     }
   });
 
-  test('AD230_TC_024 선택 없이 삭제한다. (체크X)', async ({ page }) => {
-    const f = await openCond(page);
-    await clickButton(f, '삭제');
-    await settle(page, 1000);
-    const msg = await popupMessage(page);
-    const cancel = page.getByText('Cancel', { exact: true }).first();
-    if (await cancel.isVisible().catch(() => false)) await cancel.click();
-    note(`체크 없이 삭제 → "${msg || '(메시지 없음)'}"`);
-    expect(msg).toMatch(/선택/);
-  });
-
   test('AD230_TC_037 표준작업을 추가하고 삭제한다. (삭제 후 다시 추가)', async ({ page }) => {
     await openPm(page, state.pmNo!);
     const existing = await rowsOf(page, 'std', '표준작업명');
