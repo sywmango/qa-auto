@@ -1,7 +1,7 @@
 import { test, expect, Page, Frame } from '@playwright/test';
 import fs from 'fs';
 import { openMenu, waitFrame, clickButton, settle, Grid, openLov, lovTotal } from './dream';
-import { dateAfter, closeLov } from './form';
+import { dateAfter, closeLov, BASE_TAG } from './form';
 import { DTO, TAB, openTab, listGrid, searchCal, calendarCells, clickCalendar, searchCond, loadAll, note } from './pmexec';
 import { PM_NO } from './site';
 
@@ -66,8 +66,8 @@ export async function searchCalendar(page: Page) {
   if (i < 0) return;
   await clickCalendar(page, f, i, 'T');
   const rows = await loadAll(page, f);
-  const mine = rows.filter((r) => r['예방작업번호'] === undefined || r['예방작업번호'] === PM_NO || /sychoi/.test(r['점검명']));
-  note(`카렌다(월간) 예방작업번호=${PM_NO} ${ym}: ${cells[i].day}일 T ${cells[i].t} 클릭 → ${rows.length}행, [sychoi] 주기 행 ${mine.length}`);
+  const mine = rows.filter((r) => r['예방작업번호'] === undefined || r['예방작업번호'] === PM_NO || r['점검명']?.includes(BASE_TAG));
+  note(`카렌다(월간) 예방작업번호=${PM_NO} ${ym}: ${cells[i].day}일 T ${cells[i].t} 클릭 → ${rows.length}행, ${BASE_TAG} 주기 행 ${mine.length}`);
   expect.soft(rows.length, '카렌다 숫자 클릭 목록 = T').toBe(cells[i].t);
   expect.soft(mine.length, '그 주기 점검작업만').toBe(rows.length);
 }

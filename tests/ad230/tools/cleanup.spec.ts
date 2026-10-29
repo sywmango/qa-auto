@@ -1,7 +1,7 @@
 import { test, Page } from '@playwright/test';
 import fs from 'fs';
 import { openMenu, waitFrame, clickButton, clickTab, settle, Grid } from '../../support/dream';
-import { put, popupMessage } from '../../support/form';
+import { put, popupMessage, TAG } from '../../support/form';
 import { F_COND } from '../../support/pmi';
 
 // 테스트가 만든 정기점검주기 정리 (사용자 지시 2026-10-20: 삭제할 수 있는 것은 삭제 후 다시 생성)
@@ -63,7 +63,7 @@ test.describe('테스트 데이터 정리', () => {
       const { rows } = await listRow(page, pmNo);
       if (!rows.length) { result[pmNo] = '없음 (이미 없음)'; saveResult(); continue; }
       const name = rows[0]['작업명'] ?? '';
-      if (!name.startsWith('[sychoi]')) { result[pmNo] = `건너뜀: 이름이 [sychoi] 아님 (${name})`; saveResult(); continue; }
+      if (!name.startsWith(TAG)) { result[pmNo] = `건너뜀: 이름이 ${TAG} 아님 (${name})`; saveResult(); continue; }
       let plans = await planFrame(page, pmNo);
       const statuses = [...new Set(plans.rows.map((r) => r['일정상태']))];
       if (plans.rows.some((r) => !/작업계획/.test(r['일정상태']))) {

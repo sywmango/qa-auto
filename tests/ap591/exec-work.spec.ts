@@ -1,7 +1,7 @@
 import { test, expect, Page, Frame } from '@playwright/test';
 import fs from 'fs';
 import { clickButton, settle, waitFrame, Grid } from '../support/dream';
-import { put, dateAfter, saveForm, fillAllFields, listFields } from '../support/form';
+import { put, dateAfter, saveForm, fillAllFields, listFields, TAG } from '../support/form';
 import { P, PV, F_POINT, F_POINT_VALUE, F_DOC, frameReady, val, note } from '../support/pmexec';
 import { PM, EQ, state, keep, okAndMessage, myWorks, openWork, futureDate, ensureWork, fillPoints, firstPoint } from '../support/pmexec-data';
 
@@ -39,7 +39,7 @@ test.describe('AP591 정기점검실행 (점검작업)', () => {
     const { d } = await openWork(page, day);
     const name0 = await val(d, 'pmiDesc');
     const name = name0.replace(/\s*\(실행 수정\)$/, '') + ' (실행 수정)';
-    const remark = '[sychoi] 블레이드 체결 상태 확인, 진동 2.1mm/s 정상';
+    const remark = `${TAG} 블레이드 체결 상태 확인, 진동 2.1mm/s 정상`;
     await put(d.locator(`[id="${P}.pmiDesc"]`), name);
     await put(d.locator(`[id="${P}.startTime"]`), '13:00');
     await put(d.locator(`[id="${P}.endTime"]`), '13:50');
@@ -88,8 +88,8 @@ test.describe('AP591 정기점검실행 (점검작업)', () => {
   test('AP591_EC_005 비고·점검명에 특수문자와 긴 글자를 넣는다.', async ({ page }) => {
     const day = await futureDate(page);
     const { d } = await openWork(page, day);
-    const special = `[sychoi] 특수문자 ' " < > & 확인`;
-    const long = '[sychoi] ' + '가'.repeat(400);
+    const special = `${TAG} 특수문자 ' " < > & 확인`;
+    const long = `${TAG} ` + '가'.repeat(400);
     await put(d.locator(`[id="${P}.remark"]`), special);
     const m1 = await saveForm(page, d);
     let { d: d2 } = await openWork(page, day);
@@ -111,7 +111,7 @@ test.describe('AP591 정기점검실행 (점검작업)', () => {
     await openWork(page, day);
     const { pd, p } = await firstPoint(page);
     const value = p['기준값'] || '1';
-    const detail = '[sychoi] 회전수 측정, 기준 범위 내';
+    const detail = `${TAG} 회전수 측정, 기준 범위 내`;
     await put(pd.locator(`[id="${PV}.resultValue"]`), value);
     await put(pd.locator(`[id="${PV}.resultRemark"]`), detail);
     const result = await val(pd, 'pmPointRsltStatusDesc', PV);
@@ -219,7 +219,7 @@ test.describe('AP591 정기점검실행 (점검작업)', () => {
     await settle(page, 2000);
     const dd = await waitFrame(page, 'tabFrameTAB.maPtDocLibDetail_maPtDocLibList');
     await settle(page, 1000);
-    const title = '[sychoi] 정기점검실행 결과 사진';
+    const title = `${TAG} 정기점검실행 결과 사진`;
     const file = test.info().outputPath('점검결과.txt');
     fs.writeFileSync(file, '회전 속도 1000rpm, 진동 2.1mm/s 정상\n');
     const fi = dd.locator('input[type=file]').first();
@@ -316,7 +316,7 @@ test.describe('AP591 정기점검실행 (점검작업)', () => {
     await openWork(page, today);
     const pts = await fillPoints(page);
     const { d } = await openWork(page, today);
-    if (!(await val(d, 'pmiDesc'))) await put(d.locator(`[id="${P}.pmiDesc"]`), '[sychoi] 정기점검실행 확정 테스트');
+    if (!(await val(d, 'pmiDesc'))) await put(d.locator(`[id="${P}.pmiDesc"]`), `${TAG} 정기점검실행 확정 테스트`);
     await put(d.locator(`[id="${P}.startTime"]`), '09:00');
     await put(d.locator(`[id="${P}.endTime"]`), '09:30');
     const saveMsg = await saveForm(page, d);
@@ -345,7 +345,7 @@ test.describe('AP591 정기점검실행 (점검작업)', () => {
     const input = d.locator(`[id="${P}.remark"]`);
     const editable = await input.evaluate((e) => !((e as HTMLInputElement).readOnly || (e as HTMLInputElement).disabled));
     let msg = '';
-    if (editable && btns.includes('저장')) { await put(input, '[sychoi] 완료 후 수정 시도'); msg = await saveForm(page, d); }
+    if (editable && btns.includes('저장')) { await put(input, `${TAG} 완료 후 수정 시도`); msg = await saveForm(page, d); }
     // 점검값 상세, Edit
     const { pd } = await firstPoint(page);
     const pv0 = await val(pd, 'resultValue', PV);

@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { DATA_DIR } from '../support/site';
 import { settle, clickButton, Grid, waitFrame, pickInLov, lovContentFrame } from '../support/dream';
-import { put, saveForm, popupMessage, dateAfter, loginUserName, listFields } from '../support/form';
+import { put, saveForm, popupMessage, dateAfter, loginUserName, listFields, TAG } from '../support/form';
 import { openSetting, checkAndClick, closePopups, settingRows, gridHeaders, rowByName, searchLabels } from '../support/setting';
 import {
   openMenuByPath, listFrame, openApproval, approverCell, setApprover, clearApprover, confirmOk, requestApproval, approveInInbox, approvalPopup, clickAndCollect,
@@ -201,7 +201,7 @@ test.describe('AZ303 결재요청 팝업 (일일업무일지)', () => {
     const r = await requestApproval(page, p2.det);
     const line = await apprLine(page, await openDayLog(page, title));
     const drafter = line.find((x) => x['결재자구분'] === '기안자');
-    note(`[sychoi] 일지 "${title}" 결재자 저장 "${saved || '안내 없음'}" → 다시 열어 [승인요청] (팝업 닫힘 ${r.closed})
+    note(`${TAG} 일지 "${title}" 결재자 저장 "${saved || '안내 없음'}" → 다시 열어 [승인요청] (팝업 닫힘 ${r.closed})
 결재자목록: ${line.map((x) => `${x['결재순서']} ${x['결재자구분']} ${x['결재자']}`).join(' / ')}
 (QA 계정이 하나라 본인 계정으로 확인, 2026-10-28 사용자 허락)`);
     expect(drafter?.['결재자'], '신청자(기안자) = 요청한 사람').toBe(await loginUserName(page));
@@ -546,7 +546,7 @@ test.describe('AZ303 결재요청 팝업 (일일업무일지)', () => {
   test('AZ303_TC_025 요청한 건을 결재한다.', async ({ page }) => {
     // 이번에 요청한 A·B + 앞 실행에서 요청만 하고 결재하지 못한 [sychoi] 일지
     await openMenuByPath(page, ['개인설정', '결재대기']);
-    const left = (await new Grid(await listFrame(page), '요청일자').rows()).filter((r) => r['제목'].startsWith('[sychoi]') && r['요청타입'] === DAY_FLOW).map((r) => r['제목']);
+    const left = (await new Grid(await listFrame(page), '요청일자').rows()).filter((r) => r['제목'].startsWith(TAG) && r['요청타입'] === DAY_FLOW).map((r) => r['제목']);
     const titles = [...new Set([state.requestedA, state.requestedB, ...left].filter(Boolean))];
     const done: string[] = [];
     for (const t of titles) done.push(`${t}: 승인 ${await approveInInbox(page, t)}번`);

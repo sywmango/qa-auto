@@ -1,6 +1,6 @@
 import { test, expect, Page, Frame } from '@playwright/test';
 import { settle, clickButton, Grid, lovContentFrame, escapeRe, pickInLov } from '../support/dream';
-import { put, fillAllFields, saveForm, dateAfter, chooseInLov, listFields } from '../support/form';
+import { put, fillAllFields, saveForm, dateAfter, chooseInLov, listFields, TAG, BASE_TAG } from '../support/form';
 import { approvalMenus, ApprovalMenu } from '../support/approval-menus';
 import {
   openMenuByPath, listFrame, openApproval, setApprover, requestApproval, approveInInbox, flowPhasesOf, detailWithApproval, closeAllPopups, clickAndCollect, confirmOk,
@@ -75,8 +75,8 @@ async function mocChild(page: Page, tab: string, frameRe: RegExp): Promise<Prepa
   for (const f of page.frames()) { const t = f.getByText('목록(조건)', { exact: true }).first(); if (await t.isVisible().catch(() => false)) { await t.click(); await settle(page, 2500); break; } }
   const list = await listFrame(page);
   const g = new Grid(list, '변경작업명');
-  const row = (await g.rows()).find((r) => r['변경작업명'].startsWith('[sychoi]') && r['결재진행상태'] === '결재완료');
-  if (!row) throw new Error('결재완료된 [sychoi] 변경접수 없음 (변경접수 케이스를 먼저 실행)');
+  const row = (await g.rows()).find((r) => r['변경작업명'].startsWith(TAG) && r['결재진행상태'] === '결재완료');
+  if (!row) throw new Error(`결재완료된 ${TAG} 변경접수 없음 (변경접수 케이스를 먼저 실행)`);
   await list.locator('div.gridbox:visible .objbox tr:visible', { hasText: row['변경요청#'] }).first().locator('td:visible').nth(3).dblclick();
   await settle(page, 3500);
   let det: Frame | undefined;
@@ -107,7 +107,7 @@ async function mocChild(page: Page, tab: string, frameRe: RegExp): Promise<Prepa
   await closeAllPopups(page);
   const d = await detailWithApproval(page);
   if (!d) throw new Error(`${tab} 저장 후 [승인요청] 버튼 없음 (저장 안내 "${msg || '없음'}")`);
-  return { detail: d, how: `결재완료 [sychoi] 변경접수 #${row['변경요청#']} → ${tab} [생성] → 칸 채움 → [저장] "${msg || '안내 없음'}"` };
+  return { detail: d, how: `결재완료 ${TAG} 변경접수 #${row['변경요청#']} → ${tab} [생성] → 칸 채움 → [저장] "${msg || '안내 없음'}"` };
 }
 
 /**
@@ -227,7 +227,7 @@ async function revisionPopup(page: Page) {
   const pop = page.frames().find((f) => /popupIframe/.test(f.name()) && /Rev/.test(f.url()));
   if (!pop) return '';
   // 이름(설비명·계측기명)은 [sychoi] 로, 부모 설비 Lov(선택 칸)는 위치 트리라 건너뜀
-  const ov: Record<string, string | null> = { 'commRevCommonDTO.parentEquipDesc': null, 'commRevCommonDTO.description': `[sychoi] 제개정 ${stamp()}` };
+  const ov: Record<string, string | null> = { 'commRevCommonDTO.parentEquipDesc': null, 'commRevCommonDTO.description': `${TAG} 제개정 ${stamp()}` };
   const filled = await fillAllFields(page, pop, ov, stamp().replace(/\D/g, ''));
   const msgs = await clickAndCollect(page, pop, '저장');
   await settle(page, 3000);
@@ -290,7 +290,7 @@ const PREPARE: Record<string, (page: Page, m: ApprovalMenu) => Promise<Prepared>
     const { openPm } = await import('../support/pmi');
     const { PM_NO } = await import('../support/site');
     await openPm(page, PM_NO);
-    return revise(page, `기존 [sychoi] 정기점검주기 ${PM_NO}`);
+    return revise(page, `기존 ${BASE_TAG} 정기점검주기 ${PM_NO}`);
   },
   // [생성]이 없거나 다른 메뉴의 일정·결재 흐름을 거쳐야 [승인요청]이 생기는 메뉴 (2026-10-27, 데이터 준비 방법 확인 중)
   PMIGRPRSLT: (page, m) => groupExec(page, m.path),
@@ -305,7 +305,7 @@ const PREPARE: Record<string, (page: Page, m: ApprovalMenu) => Promise<Prepared>
     await openWork(page, issued!['점검일자']);
     await fillPoints(page);
     const { d } = await openWork(page, issued!['점검일자']);
-    return { detail: d, how: `${how}[sychoi] 점검작업 ${issued!['점검일자']} (작업발행) 점검값 입력 → 상세` };
+    return { detail: d, how: `${how}${BASE_TAG} 점검작업 ${issued!['점검일자']} (작업발행) 점검값 입력 → 상세` };
   },
   // 정기수리계획에는 [생성]이 없어 수리작업실행에서 작업종류·작업형태 정기수리로 [sychoi] 작업을 만듦 (같은 상세 화면)
   // 결재요청을 부른 화면에 따라 업무구분이 정해짐 (수리작업실행에서 요청하면 "작업결과") → 정기수리계획 화면에서 기존 작업으로 요청 (2026-10-27 사용자)
@@ -348,7 +348,7 @@ const PREPARE: Record<string, (page: Page, m: ApprovalMenu) => Promise<Prepared>
     await clickButton(list, '검색').catch(() => {});
     await settle(page, 2000);
     const rows = await new Grid(list, '도입명').rows();
-    const mine = rows.find((r) => r['도입명'].startsWith('[sychoi]'));
+    const mine = rows.find((r) => r['도입명'].startsWith(TAG));
     if (mine) { await new Grid(list, '도입명').clickCell('도입명', mine['도입명'], { dbl: true }); await settle(page, 3000); }
     const d = await detailWithApproval(page);
     const st = await page.frames().find((f) => /invtDetail_invtList/.test(f.name()))?.locator('[id="invtDetailDTO.invtlistStatusDesc"]').inputValue().catch(() => '');
@@ -395,7 +395,7 @@ approvalMenus.forEach((m, i) => {
     }
     const { det: pop, grid } = await openApproval(page, p.detail);
     const lines = await new Grid(grid, '결재순서').rows();
-    const title = `[sychoi] AZ303 ${m.code} ${stamp()}`;
+    const title = `${TAG} AZ303 ${m.code} ${stamp()}`;
     await put(pop.locator('[id="appReqDetailDTO.title"]'), title);
     for (const r of lines) if (!r['결재자1']) await setApprover(page, grid, r['결재순서'], 1, ME);
     // 결재자를 바꾼 뒤에는 목록 [저장]을 먼저 해야 함 ("저장후 사용하세요.")

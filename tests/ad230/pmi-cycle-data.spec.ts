@@ -1,7 +1,7 @@
 import { test, expect, Page, Frame } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid } from '../support/dream';
+import { openMenu, waitFrame, clickButton, clickTab, fieldValue, settle, Grid, escapeRe } from '../support/dream';
 import { D, detailFrame, rowsOf, deleteRow, deleteRowWhere, addStd, addPoint, addDoc, fmt, POINTS, uniqueName, PM_VALUES, pmValues, remember, readPlans } from '../support/pmi';
 import {
   fillAllFields, readFields, diffFields, diffWithRow, saveForm, popupMessage, chooseInLov, closeLov,
@@ -357,7 +357,7 @@ test.describe('AD230 정기점검주기 (생성·수정·일정)', () => {
 
   test('AD230_TC_042 첨부문서를 등록하고 삭제한다. (삭제 후 다시 등록)', async ({ page }) => {
     // 문서 제목은 이 주기의 점검 종류에 맞춤 (예: [sychoi] 메인 베어링 윤활 점검 작업표준서)
-    const base = `${TAG} ${(state.name ?? '').replace(/^\[sychoi\] High Speed Mixer\([^)]*\) /, '').replace(/ \(.*\)$/, '') || '정기점검'} 작업표준서`;
+    const base = `${TAG} ${(state.name ?? '').replace(new RegExp(`^${escapeRe(TAG)} High Speed Mixer\\([^)]*\\) `), '').replace(/ \(.*\)$/, '') || '정기점검'} 작업표준서`;
     await openPm(page, state.pmNo!);
     const before = (await rowsOf(page, 'doc', '제목')).length;
     const a = await addDoc(page, base, 'HighSpeedMixer_점검기준서.txt');

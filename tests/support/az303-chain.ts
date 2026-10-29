@@ -1,6 +1,6 @@
 import { Page, Frame } from '@playwright/test';
 import { settle, clickButton, Grid } from './dream';
-import { fillAllFields, saveForm, dateAfter, listFields, put, chooseInLov } from './form';
+import { fillAllFields, saveForm, dateAfter, listFields, put, chooseInLov, TAG } from './form';
 import { openMenuByPath, listFrame, clickAndCollect, closeAllPopups } from './approval';
 
 // 결재요청(AZ303) — [생성]이 없는 실행 메뉴(순회점검실행·점검Group실행)용 [sychoi] 데이터 흐름
@@ -45,7 +45,7 @@ export async function createCycle(page: Page, c: Chain, stamp: string) {
     if (!det) await page.waitForTimeout(1000);
   }
   if (!det) throw new Error('주기 생성 상세가 열리지 않음');
-  const name = `[sychoi] AZ303 ${stamp}`;
+  const name = `${TAG} AZ303 ${stamp}`;
   // 라벨로 준 값(이름·최초작업예정일·근무달력 등)을 칸 id 로 바꿈
   const byLabel: Record<string, string | null> = { ...(c.labels ?? {}) };
   const ov: Record<string, string | null> = { ...(c.overrides ?? {}) };
@@ -61,7 +61,7 @@ export async function createCycle(page: Page, c: Chain, stamp: string) {
     await chooseInLov(page, det, f.id, byLabel[f.label]!);
     log(`${f.label} Lov 에서 ${byLabel[f.label]}`);
   }
-  const nameField = Object.entries(filled).find(([, v]) => v.value === name) ?? Object.entries(filled).find(([, v]) => v.value.startsWith('[sychoi]'));
+  const nameField = Object.entries(filled).find(([, v]) => v.value === name) ?? Object.entries(filled).find(([, v]) => v.value.startsWith(TAG));
   const msg = await saveForm(page, det);
   log(`주기 저장 "${msg}" ${nameField?.[1].value}`);
   await closeAllPopups(page);

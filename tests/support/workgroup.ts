@@ -2,7 +2,7 @@ import { Page, Frame, expect } from '@playwright/test';
 import { openMenu, settle, Grid, clickButton, lovContentFrame, expandTreeUntil, escapeRe } from './dream';
 import { topTabs } from './header';
 import { closePopups } from './setting';
-import { put, saveForm } from './form';
+import { put, saveForm, TAG } from './form';
 
 // 개인설정 > 업무그룹설정 화면 부품
 // - 목록(메인 화면): 업무그룹#, 업무그룹명 … / 생성·삭제
@@ -10,7 +10,7 @@ import { put, saveForm } from './form';
 // 왼쪽 메뉴 업무그룹 > 그룹을 누르면, 넣어 둔 화면들이 위쪽 탭으로 열림
 // 테스트가 만드는 업무그룹은 이름이 PREFIX 로 시작하고, 테스트 끝에 지움 (다른 업무그룹은 건드리지 않음)
 
-export const PREFIX = '[sychoi] 자동테스트';
+export const PREFIX = `${TAG} 자동테스트`;
 const MENU = ['292', '1398'];
 const F_DETAIL = 'tabFrameTAB.persPrivBizMenuSetDetail_persPrivBizMenuSetList';
 const F_PAGES = 'tabFrameTAB.persPrivBizMenuSetPageList_persPrivBizMenuSetDetail';

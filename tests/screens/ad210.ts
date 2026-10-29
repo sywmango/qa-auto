@@ -1,4 +1,5 @@
 import { Page } from '@playwright/test';
+import { BASE_TAG } from '../support/form';
 import { settle } from '../support/dream';
 import { MENU, TAB, openTab, searchPeriod, loadAll, clickRow, listGrid, search } from '../support/pmplan';
 import * as V from '../support/pmplan-view';
@@ -6,7 +7,7 @@ import { Screen } from './types';
 
 // 작업관리 > 정기점검작업 > 정기점검계획 (AD210). 대상 화면: 목록(조건) 탭
 const TC = 'AD210_TC_027';
-const SY = '[sychoi]';
+const SY = BASE_TAG;   // 팀 공용 기준 주기(8007)의 계획
 const P = TAB.period.dto;
 const period = (page: Page) => openTab(page, 'period');
 const year = (page: Page) => openTab(page, 'year');

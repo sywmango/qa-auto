@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { clickButton, fieldValue, settle } from '../support/dream';
-import { put, dateAfter, saveForm } from '../support/form';
+import { put, dateAfter, saveForm, TAG, BASE_TAG } from '../support/form';
 import { TAB, openTab, listGrid, search, clickRow, detailOf, note, loadAll } from '../support/pmplan';
 import { PM, EQ, state, keep, okAndMessage, myPlans, rowIndex, freeWeekday, addPlans, checkRows, editCell } from '../support/pmplan-data';
 
@@ -14,7 +14,7 @@ test.setTimeout(300_000);
 /** 작업완료 계획도 함께 보이는 목록: [sychoi] 전체 (작업완료 건은 예전 주기 8018 의 것만 씀) */
 async function sychoiRows(page: import('@playwright/test').Page) {
   const { searchPeriod } = await import('../support/pmplan');
-  const f = await searchPeriod(page, { pmDesc: '[sychoi]' });
+  const f = await searchPeriod(page, { pmDesc: BASE_TAG });
   return { f, rows: await loadAll(page, f) };
 }
 const OLD_DONE = (r: Record<string, string>) => r['예방작업번호'] === '8018' && r['일정상태'] === '작업완료';
@@ -40,7 +40,7 @@ test.describe('AD210 정기점검계획 (계획 추가·수정·확정·삭제)'
     expect.soft(r.head.pmNo).toBe(PM);
     expect.soft(r.head.itemNo).toBe(EQ);
     expect.soft(r.head.equipDesc).toBe('High Speed Mixer(세종파마텍)');
-    expect.soft(r.head.pmDesc).toContain('[sychoi]');
+    expect.soft(r.head.pmDesc).toContain(BASE_TAG);
   });
 
   test('AD210_TC_030 필수값 없이 일정을 추가한다.', async ({ page }) => {
@@ -185,7 +185,7 @@ test.describe('AD210 정기점검계획 (계획 추가·수정·확정·삭제)'
     // 같은 달 안의 다른 평일로 (달력에서 고름)
     const newDay = `${d4.slice(0, 8)}${String(Number(d4.slice(8)) <= 25 ? Number(d4.slice(8)) + 2 : Number(d4.slice(8)) - 2).padStart(2, '0')}`;
     const ed = await editCell(page, f, idx, '일정조정', newDay);
-    const bigo = await editCell(page, f, idx, '비고', '[sychoi] Edit 비고');
+    const bigo = await editCell(page, f, idx, '비고', `${TAG} Edit 비고`);
     await clickButton(f, '저장');
     const msg = await okAndMessage(page);
     const after = (await myPlans(page)).mine.filter((x) => x['초기계획'] === state.e0);

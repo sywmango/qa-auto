@@ -2,7 +2,7 @@ import { test } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { Grid, settle } from '../support/dream';
-import { put } from '../support/form';
+import { put, TAG } from '../support/form';
 import { DATA_DIR } from '../support/site';
 import { openMenuByPath, listFrame, approveInInbox } from '../support/approval';
 
@@ -10,9 +10,9 @@ import { openMenuByPath, listFrame, approveInInbox } from '../support/approval';
 // 그리고 정기수리계획(WOPLAN) 요청타입 증적 캡처 (결재요청내역을 제목으로 걸러서)
 test.setTimeout(900_000);
 
-test('AZ303 뒷정리 — 남은 [sychoi] 결재대기 승인', async ({ page }) => {
+test(`AZ303 뒷정리 — 남은 ${TAG} 결재대기 승인`, async ({ page }) => {
   await openMenuByPath(page, ['개인설정', '결재대기']);
-  const left = (await new Grid(await listFrame(page), '요청일자').rows()).filter((r) => r['제목'].startsWith('[sychoi]')).map((r) => r['제목']);
+  const left = (await new Grid(await listFrame(page), '요청일자').rows()).filter((r) => r['제목'].startsWith(TAG)).map((r) => r['제목']);
   const done: string[] = [];
   for (const t of [...new Set(left)]) done.push(`${t}: 승인 ${await approveInInbox(page, t)}번`);
   test.info().annotations.push({ type: '실제결과', description: done.join('\n') || '남은 건 없음' });
